@@ -16,11 +16,14 @@ import numpy as np
 
 from ventrigel.assurance import (
     assurance,
+    assurance_at_enrichment,
     assurance_ceiling,
     assurance_curve,
     n_for_assurance,
     power_at,
     power_at_vec,
+    programme_grid,
+    programme_success,
 )
 from ventrigel.economics import CostModel, cost, optimal_enrichment
 from ventrigel.inference import (
@@ -35,9 +38,9 @@ from ventrigel.inference import (
 from ventrigel.literature import (
     ANCHORS,
     BSA_CENTRAL,
-    early_control_prior,
+    anchored_control,
+    bsa_sensitivity,
     implied_ventrigel_lvesvi,
-    late_control_prior,
 )
 from ventrigel.power import (
     EnrichedPopulation,
@@ -46,6 +49,7 @@ from ventrigel.power import (
     build_population,
     design,
     enrichment_curve,
+    interaction_design,
     n_per_arm_exact,
     n_per_arm_normal,
     n_screened,
@@ -380,11 +384,10 @@ def test_chronic_anchor_is_near_zero():
     assert abs(ANCHORS["focus_cctrn"].absolute_change()) < 1e-9
 
 
-def test_control_priors_bracket_their_sources():
-    ep_, lp = early_control_prior(), late_control_prior()
-    assert ep_.low < 0 < ep_.high
-    assert ep_.low <= ep_.central <= ep_.high
-    assert lp.low <= lp.central <= lp.high
+def test_anchored_controls_cover_the_volume_endpoints():
+    for stratum in ("early", "late"):
+        got = anchored_control("lvesv", stratum)
+        assert got is not None and math.isfinite(got[0]) and got[1] >= 0
 
 
 def test_bsa_assumption_is_plausible():
@@ -474,6 +477,179 @@ def test_assurance_needs_more_patients_than_nominal_power():
     n_power = design("lvesv", 1.0, PI, 0.0, 0.0, dropout=0.10, shrinkage=0.75).n_total
     n_assur = n_for_assurance("lvesv", 0.80, 0.75, 0.0, n_draws=8000)
     assert n_assur > n_power
+
+
+# -- anchor uncertainty (the correction that doubled the trial) -------------
+
+
+def test_focus_cctrn_standard_error_is_recoverable_and_large():
+    """The anchor is not a constant, and its SE rivals the effect it measures."""
+    a = ANCHORS["focus_cctrn"]
+    se = a.standard_error()
+    assert se is not None
+    # Same order as the 7.6 mL treatment effect it is subtracted from.
+    assert 3.0 < se < 6.0
+
+
+def test_change_sd_needs_the_retest_correlation():
+    """Recovering a change SD from level SDs is correlation-dependent."""
+    a = ANCHORS["focus_cctrn"]
+    tight = a.absolute_sd(retest_r=0.95)
+    loose = a.absolute_sd(retest_r=0.70)
+    assert tight < loose
+    assert loose / tight > 1.8
+
+
+def test_propagating_anchor_uncertainty_raises_required_n():
+    """The headline correction: ignoring the comparator's SE halves the trial."""
+    c, se = anchored_control("lvesv", "late")
+    n_exact = n_for_assurance("lvesv", 0.80, 0.75, c, n_draws=8000, control_se=0.0)
+    n_prop = n_for_assurance("lvesv", 0.80, 0.75, c, n_draws=8000, control_se=se)
+    assert n_prop > 1.5 * n_exact
+
+
+def test_propagating_anchor_uncertainty_lowers_the_ceiling():
+    c, se = anchored_control("lvesv", "late")
+    hi = assurance_ceiling("lvesv", 0.75, c, n_draws=8000, control_se=0.0)
+    lo = assurance_ceiling("lvesv", 0.75, c, n_draws=8000, control_se=se)
+    assert lo < hi
+
+
+def test_bsa_moves_the_anchor_se_but_not_its_point_estimate():
+    """A useful property: the key anchor is zero at every plausible BSA."""
+    sweep = bsa_sensitivity("lvesv", "late")
+    changes = {round(ch, 6) for _, ch, _ in sweep}
+    assert changes == {0.0}
+    ses = [se for _, _, se in sweep]
+    assert ses[-1] > ses[0]
+
+
+def test_anchor_choice_is_explicit_not_automatic():
+    """Selecting by sample size would flip the early comparator's sign."""
+    from ventrigel.literature import ANCHOR_CHOICE_RATIONALE, PREFERRED_ANCHOR
+
+    assert ("lvesv", "early") in PREFERRED_ANCHOR
+    assert PREFERRED_ANCHOR[("lvesv", "early")] == "time"
+    for key in PREFERRED_ANCHOR:
+        assert key in ANCHOR_CHOICE_RATIONALE and len(ANCHOR_CHOICE_RATIONALE[key]) > 80
+    got = anchored_control("lvesv", "early")
+    assert got is not None and got[0] > 0  # TIME's +8.2, not EMPRESS-MI's -14.8
+
+
+def test_unanchored_cells_return_none_rather_than_zero():
+    """Callers must handle a missing anchor, not silently receive a zero."""
+    assert anchored_control("viable_mass", "late") is None
+    assert anchored_control("mlwhfq", "early") is None
+
+
+def test_percent_anchor_converts_against_its_reference():
+    a = ANCHORS["khan_6mwt"]
+    assert a.percent and a.percent_reference == 418.0
+    assert math.isclose(a.absolute_change(), 4.2 / 100 * 418.0, rel_tol=1e-9)
+    assert a.evidence == "abstract"
+
+
+# -- enrichment-aware assurance (fixes a real app bug) ----------------------
+
+
+def test_assurance_tracks_the_enrichment_level():
+    """A partially enriched trial must not be scored as a fully enriched one."""
+    c_e, se_e = anchored_control("lvesv", "early")
+    c_l, se_l = anchored_control("lvesv", "late")
+    vals = [
+        assurance_at_enrichment(
+            "lvesv", 200, e, 0.75, c_e, c_l, se_e, se_l, n_draws=6000
+        ).assurance
+        for e in (0.53, 0.75, 1.0)
+    ]
+    assert all(a < b for a, b in zip(vals, vals[1:]))
+
+
+def test_mixture_assurance_agrees_with_single_stratum_at_full_enrichment():
+    c_l, se_l = anchored_control("lvesv", "late")
+    mix = assurance_at_enrichment(
+        "lvesv", 200, 1.0, 0.75, 0.0, c_l, 0.0, se_l, n_draws=20000
+    ).assurance
+    single = assurance("lvesv", 200, 0.75, c_l, n_draws=20000, control_se=se_l).assurance
+    assert abs(mix - single) < 0.02
+
+
+# -- unconditional probability of success -----------------------------------
+
+
+def test_programme_success_is_prior_times_assurance():
+    r = programme_success("lvesv", 200, 0.5, 0.75, 0.0, 0.0, n_draws=6000)
+    assert math.isclose(r.unconditional, 0.5 * r.conditional_assurance, rel_tol=1e-9)
+
+
+def test_no_sample_size_beats_the_prior():
+    """The point of reporting it: the prior is a hard ceiling."""
+    for n in (100, 1000, 100000):
+        r = programme_success("lvesv", n, 0.4, 0.75, 0.0, 0.0, n_draws=4000)
+        assert r.unconditional <= 0.4 + 1e-9
+
+
+def test_programme_grid_is_monotone_in_both_directions():
+    ns = np.array([50, 200, 800])
+    priors = np.array([0.25, 0.5, 1.0])
+    g = programme_grid("lvesv", ns, priors, 0.75, 0.0, 0.0, n_draws=4000)
+    assert g.shape == (3, 3)
+    assert np.all(np.diff(g, axis=0) >= -1e-12)  # rising in n
+    assert np.all(np.diff(g, axis=1) >= -1e-12)  # rising in prior
+
+
+# -- the confirmatory 2x2 design --------------------------------------------
+
+
+def test_interaction_design_costs_more_than_the_main_effect_design():
+    """Interactions carry twice the variance; anchoring shrinks the contrast."""
+    c_e, _ = anchored_control("lvesv", "early")
+    c_l, _ = anchored_control("lvesv", "late")
+    d = interaction_design("lvesv", c_e, c_l, dropout=0.10, shrinkage=0.75)
+    assert d.feasible
+    assert d.n_total > d.n_enriched_reference
+    assert 3.0 < d.ratio_to_enriched < 7.0
+
+
+def test_anchoring_halves_the_interaction_contrast():
+    """Most of the early stratum's apparent harm is natural history."""
+    naive = interaction_design("lvesv", 0.0, 0.0, dropout=0.10, shrinkage=0.75)
+    c_e, _ = anchored_control("lvesv", "early")
+    c_l, _ = anchored_control("lvesv", "late")
+    anchored = interaction_design("lvesv", c_e, c_l, dropout=0.10, shrinkage=0.75)
+    assert anchored.contrast < naive.contrast
+    assert anchored.contrast / naive.contrast < 0.7
+
+
+def test_interaction_contrast_matches_hand_calculation():
+    d = interaction_design("lvesv", 0.0, 0.0, shrinkage=1.0)
+    # benefit-signed: -(-7.6) - -(9.3) = 7.6 + 9.3 = 16.9
+    assert math.isclose(d.contrast, 16.9, abs_tol=1e-9)
+
+
+def test_interaction_design_reports_infeasible_when_contrast_reverses():
+    """A large positive early comparator makes the early stratum look better.
+
+    The early stratum's raw +9.3 mL becomes a benefit once the comparator it is
+    measured against rises past it, so the interaction points the wrong way and
+    there is no contrast to power for. Note the direction: it is a *rise* in the
+    early comparator that reverses the contrast, not a fall.
+    """
+    d = interaction_design("lvesv", 30.0, 0.0, shrinkage=0.75)
+    assert d.contrast < 0
+    assert not d.feasible
+
+
+# -- single power implementation --------------------------------------------
+
+
+def test_power_functions_are_the_same_object():
+    """Two copies with different NaN handling was a real duplication risk."""
+    from ventrigel import assurance as _a
+    from ventrigel import power as _p
+
+    assert _a.power_at is _p.power_at
+    assert _p.achieved_power is _p.power_at
 
 
 # -- data integrity ---------------------------------------------------------

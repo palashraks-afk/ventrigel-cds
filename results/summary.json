@@ -8,13 +8,11 @@
   "validation": {
     "p_checks_tested": 38,
     "p_checks_agree": 38,
-    "p_checks_excluded": 4,
     "sd_reconstruction_median_rel_error": 0.03254567148094008
   },
   "evidence": {
     "strongest_endpoint": "lvesv",
     "strongest_p": 0.034178857619150536,
-    "n_nominally_significant": 1,
     "n_tests": 9,
     "effective_n_tests": 5,
     "survives_bonferroni": false,
@@ -24,106 +22,115 @@
     "verdict": "One endpoint of 9 shows a nominally significant interaction (lvesv, p = 0.034). It does not survive Bonferroni or Benjamini-Hochberg correction. The strata are balanced at baseline, and the pattern is not explained by regression to the mean. The finding is therefore suggestive and fragile: strong enough to justify designing a trial around, not strong enough to assert as established."
   },
   "anchors": {
-    "early_central": 8.17,
-    "early_low": -14.819999999999999,
-    "early_high": 8.17,
-    "late_central": 0.0,
-    "late_low": -9.9,
-    "late_high": 9.9,
-    "bsa": 1.9
+    "control_early": 8.17,
+    "control_early_se": 4.653146690449415,
+    "control_late": 0.0,
+    "control_late_se": 4.407192660056642,
+    "bsa": 1.9,
+    "retest_r": 0.85,
+    "coverage": {
+      "ef": {
+        "early": "EMPRESS-MI",
+        "late": "FOCUS-CCTRN"
+      },
+      "lvedv": {
+        "early": "PRESERVATION-I",
+        "late": null
+      },
+      "lvesv": {
+        "early": "TIME",
+        "late": "FOCUS-CCTRN"
+      },
+      "six_min_walk": {
+        "early": null,
+        "late": "Khan et al. systematic review"
+      }
+    }
+  },
+  "anchor_uncertainty": {
+    "anchor treated as exact": {
+      "assurance_174": 0.8005723463996938,
+      "ceiling": 0.9746,
+      "n_for_80": 174.0
+    },
+    "anchor uncertainty propagated": {
+      "assurance_174": 0.7213635705312083,
+      "ceiling": 0.9089,
+      "n_for_80": 406.0
+    }
   },
   "assurance": {
-    "ceiling": 0.9746,
+    "ceiling": 0.9089,
     "curve": [
       {
         "n_total": 52,
         "nominal_power": 0.6052532014393815,
-        "assurance": 0.5320567379147777
+        "assurance": 0.5236371687754656
       },
       {
         "n_total": 92,
         "nominal_power": 0.8480049933279483,
-        "assurance": 0.6766752520360317
+        "assurance": 0.6304816464371795
       },
       {
-        "n_total": 108,
-        "nominal_power": 0.900186080362892,
-        "assurance": 0.712321587486114
-      },
-      {
-        "n_total": 150,
-        "nominal_power": 0.9693560360194555,
-        "assurance": 0.7760668603927671
-      },
-      {
-        "n_total": 200,
-        "nominal_power": 0.9932719490981642,
-        "assurance": 0.8211610001590405
+        "n_total": 174,
+        "nominal_power": 0.9850092758516351,
+        "assurance": 0.7213635705312083
       },
       {
         "n_total": 300,
         "nominal_power": 0.9997458362230163,
-        "assurance": 0.868843915305518
+        "assurance": 0.7768219004526358
       },
       {
-        "n_total": 500,
-        "nominal_power": 0.9999997983771184,
-        "assurance": 0.9078922478897627
+        "n_total": 406,
+        "nominal_power": 0.9999937769555372,
+        "assurance": 0.8003505069674537
+      },
+      {
+        "n_total": 600,
+        "nominal_power": 0.999999995284231,
+        "assurance": 0.824521657429311
       },
       {
         "n_total": 1000,
         "nominal_power": 0.9999999999999993,
-        "assurance": 0.9374271561472981
+        "assurance": 0.8477926363976239
       }
     ],
     "n_for_target": {
       "0.50": 48.0,
-      "0.60": 68.0,
-      "0.70": 104.0,
-      "0.80": 174.0,
-      "0.85": 252.0,
-      "0.90": 442.0
+      "0.60": 78.0,
+      "0.70": 148.0,
+      "0.80": 406.0,
+      "0.85": 1062.0
     }
   },
-  "bootstrap": {
-    "lvesv_e0.53": {
-      "median": 896.0,
-      "q10": 172.80000000000007,
-      "q90": 16647.999999999993,
-      "feasible_fraction": 0.83125
-    },
-    "lvesv_e1.00": {
-      "median": 108.0,
-      "q10": 34.0,
-      "q90": 635.0,
-      "feasible_fraction": 0.9765
-    },
-    "viable_mass_e0.53": {
-      "median": 1337.0,
-      "q10": 164.0,
-      "q90": 32913.0,
-      "feasible_fraction": 0.6515
-    },
-    "viable_mass_e1.00": {
-      "median": 80.0,
-      "q10": 26.40000000000009,
-      "q90": 428.0,
-      "feasible_fraction": 0.97825
-    },
-    "six_min_walk_e0.53": {
-      "median": 119.0,
-      "q10": 48.0,
-      "q90": 452.0,
-      "feasible_fraction": 0.993
-    },
-    "six_min_walk_e1.00": {
-      "median": 64.0,
-      "q10": 24.0,
-      "q90": 296.0,
-      "feasible_fraction": 0.98375
-    }
+  "confirmatory": {
+    "designs": [
+      {
+        "scenario": "no control drift",
+        "control_early": 0.0,
+        "control_late": 0.0,
+        "contrast": 12.675,
+        "n_per_cell": 31.0,
+        "n_total": 124.0,
+        "n_enriched": 92.0,
+        "ratio": 1.3478260869565217
+      },
+      {
+        "scenario": "anchored controls",
+        "control_early": 8.17,
+        "control_late": 0.0,
+        "contrast": 6.547499999999999,
+        "n_per_cell": 110.0,
+        "n_total": 440.0,
+        "n_enriched": 92.0,
+        "ratio": 4.782608695652174
+      }
+    ]
   },
-  "assumptions": {
+  "sensitivity": {
     "scenarios": [
       {
         "scenario": "no control drift (naive)",
@@ -140,53 +147,78 @@
         "n_enriched": 92.0
       },
       {
-        "scenario": "modern early care (EMPRESS-MI)",
-        "control_early": -14.819999999999999,
+        "scenario": "EMPRESS-MI early comparator",
+        "control_early": -14.82,
         "control_late": 0.0,
         "n_unselected": Infinity,
         "n_enriched": 92.0
       },
       {
-        "scenario": "pessimistic late (FOCUS-HF)",
+        "scenario": "FOCUS-HF late comparator",
         "control_early": 8.17,
-        "control_late": -9.9,
-        "n_unselected": Infinity,
-        "n_enriched": Infinity
-      },
-      {
-        "scenario": "worst case for enrichment",
-        "control_early": -14.819999999999999,
         "control_late": -9.9,
         "n_unselected": Infinity,
         "n_enriched": Infinity
       }
     ]
   },
-  "economics": {
-    "lvesv": {
-      "e_optimal": 1.0,
-      "n_optimal": 92.0,
-      "cost_optimal": 11589250.0,
-      "duration_months": 47.333333333333336,
-      "saving_fraction": 0.867360427587154
-    },
-    "six_min_walk": {
-      "e_optimal": 0.9825,
-      "n_optimal": 56.0,
-      "cost_optimal": 8056506.25,
-      "duration_months": 31.925,
-      "saving_fraction": 0.16200267838568755
-    },
+  "programme": {
+    "programme": [
+      {
+        "n_total": 92,
+        "prior_0.3": 0.18914449393115385,
+        "prior_0.4": 0.25219265857487183,
+        "prior_0.5": 0.31524082321858976,
+        "prior_0.6": 0.3782889878623077,
+        "prior_0.8": 0.5043853171497437,
+        "prior_1.0": 0.6304816464371795
+      },
+      {
+        "n_total": 174,
+        "prior_0.3": 0.21640907115936248,
+        "prior_0.4": 0.2885454282124833,
+        "prior_0.5": 0.3606817852656041,
+        "prior_0.6": 0.43281814231872495,
+        "prior_0.8": 0.5770908564249666,
+        "prior_1.0": 0.7213635705312083
+      },
+      {
+        "n_total": 300,
+        "prior_0.3": 0.23304657013579072,
+        "prior_0.4": 0.31072876018105433,
+        "prior_0.5": 0.3884109502263179,
+        "prior_0.6": 0.46609314027158144,
+        "prior_0.8": 0.6214575203621087,
+        "prior_1.0": 0.7768219004526358
+      },
+      {
+        "n_total": 406,
+        "prior_0.3": 0.24010515209023608,
+        "prior_0.4": 0.3201402027869815,
+        "prior_0.5": 0.40017525348372684,
+        "prior_0.6": 0.48021030418047217,
+        "prior_0.8": 0.640280405573963,
+        "prior_1.0": 0.8003505069674537
+      },
+      {
+        "n_total": 800,
+        "prior_0.3": 0.25158879273735985,
+        "prior_0.4": 0.3354517236498131,
+        "prior_0.5": 0.4193146545622664,
+        "prior_0.6": 0.5031775854747197,
+        "prior_0.8": 0.6709034472996263,
+        "prior_1.0": 0.8386293091245328
+      }
+    ],
     "recommended": {
-      "n_total": 174.0,
-      "n_screened": 326.25,
-      "duration_months": 81.5,
-      "total_cost": 19558625.0,
+      "n_total": 406.0,
+      "n_screened": 761.25,
+      "total_cost": 42106125.0,
       "sites_for_calendar": {
-        "24": 29,
-        "30": 21,
-        "36": 17,
-        "48": 12
+        "24": 68,
+        "30": 49,
+        "36": 38,
+        "48": 27
       }
     }
   }

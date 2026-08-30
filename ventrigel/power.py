@@ -216,22 +216,17 @@ def n_per_arm_exact(
     if effect == 0 or not math.isfinite(effect):
         return float("inf")
 
-    def power_at(n: float) -> float:
-        # The noncentral t can return NaN for extreme noncentrality, which the
-        # bootstrap reaches routinely. Treat a non-finite result as "no
-        # information" rather than letting it poison the root-finder.
-        if n <= 1.5:
-            return 0.0
-        df = 2 * n - 2
-        ncp = abs(effect) / (sd * math.sqrt(2.0 / n))
-        if not math.isfinite(ncp):
-            return 0.0
-        try:
-            crit = stats.t.ppf(1 - alpha / 2, df)
-            p = float(stats.nct.sf(crit, df, ncp) + stats.nct.cdf(-crit, df, ncp))
-        except (ValueError, FloatingPointError):
-            return float("nan")
-        return p if math.isfinite(p) else float("nan")
+    def two_sided_power(n: float) -> float:
+        """Power to detect an effect of this *magnitude* in either direction.
+
+        Distinct from the module-level :func:`power_at`, which returns zero for
+        an effect pointing away from benefit. Sizing legitimately uses the
+        magnitude, because a trial is powered before its direction is known;
+        assurance legitimately does not, because a trial cannot succeed on an
+        effect that is not there. Keeping the two separate and named
+        differently avoids the two meanings being silently interchanged.
+        """
+        return power_at(n, abs(effect), sd, alpha)
 
     guess = n_per_arm_normal(effect, sd, alpha, power)
     if not math.isfinite(guess) or guess > cap:
@@ -241,7 +236,7 @@ def n_per_arm_exact(
     lo = 2.0
     hi = max(guess * 2.0, lo + 10.0)
     for _ in range(60):
-        p_hi = power_at(hi)
+        p_hi = two_sided_power(hi)
         if math.isfinite(p_hi) and p_hi >= power:
             break
         hi *= 2.0
@@ -252,30 +247,95 @@ def n_per_arm_exact(
 
     # Walk lo upward until it is a valid point below the target, so brentq
     # never evaluates inside a NaN region.
-    p_lo = power_at(lo)
+    p_lo = two_sided_power(lo)
     while not math.isfinite(p_lo) or p_lo >= power:
         lo = lo + max(1.0, 0.05 * (hi - lo))
         if lo >= hi:
             return float(hi)
-        p_lo = power_at(lo)
+        p_lo = two_sided_power(lo)
 
     try:
-        root = optimize.brentq(lambda n: power_at(n) - power, lo, hi, xtol=1e-4)
+        root = optimize.brentq(lambda n: two_sided_power(n) - power, lo, hi, xtol=1e-4)
     except (ValueError, RuntimeError):
         return float(hi)
     return float(root)
 
 
-def achieved_power(
-    n_per_arm: float, effect: float, sd: float, alpha: float = 0.05
-) -> float:
-    """Power of a given design, for reading the model in the other direction."""
-    if n_per_arm <= 1 or effect == 0 or not math.isfinite(effect):
+def _power_normal(ncp: float, alpha: float) -> float:
+    """Normal approximation to two-sample power, used as a smooth fallback."""
+    z = stats.norm.ppf(1 - alpha / 2)
+    return float(stats.norm.sf(z - ncp) + stats.norm.cdf(-z - ncp))
+
+
+def power_at(n_per_arm: float, effect: float, sd: float, alpha: float = 0.05) -> float:
+    """Power of a two-arm design, evaluated against the noncentral t.
+
+    ``scipy.stats.nct`` returns NaN for large noncentrality, which the assurance
+    integration reaches routinely once a draw lands on a big effect. Resolving
+    those failures by thresholding the noncentrality makes the assurance curve
+    non-monotone: as n grows a draw can jump from a valid 0.9 straight to 0.
+    Falling back to the normal approximation keeps the function smooth, and the
+    approximation is accurate precisely where the exact computation fails, since
+    large noncentrality means large df and a power near one.
+
+    Effects that do not favour treatment return 0 rather than their absolute
+    value's power, because a trial cannot succeed on an effect pointing the
+    wrong way.
+    """
+    if n_per_arm <= 1.5 or effect <= 0 or sd <= 0:
         return 0.0
     df = 2 * n_per_arm - 2
-    ncp = abs(effect) / (sd * math.sqrt(2.0 / n_per_arm))
-    crit = stats.t.ppf(1 - alpha / 2, df)
-    return float(stats.nct.sf(crit, df, ncp) + stats.nct.cdf(-crit, df, ncp))
+    ncp = effect / (sd * math.sqrt(2.0 / n_per_arm))
+    if not math.isfinite(ncp):
+        return 0.0
+    try:
+        crit = stats.t.ppf(1 - alpha / 2, df)
+        p = float(stats.nct.sf(crit, df, ncp) + stats.nct.cdf(-crit, df, ncp))
+    except (ValueError, FloatingPointError):
+        return _power_normal(ncp, alpha)
+    return p if math.isfinite(p) else _power_normal(ncp, alpha)
+
+
+def power_at_vec(
+    n_per_arm: float, effects: np.ndarray, sds: np.ndarray, alpha: float = 0.05
+) -> np.ndarray:
+    """Vectorized :func:`power_at` over an array of drawn effects.
+
+    The scalar form calls into scipy once per draw, which makes a
+    twenty-thousand-draw assurance curve take minutes. One vectorized call per
+    sample size takes milliseconds, which matters because the curve is
+    recomputed interactively in the web application. Results are identical to
+    the scalar path, fallback included.
+    """
+    effects = np.asarray(effects, dtype=float)
+    sds = np.asarray(sds, dtype=float)
+    out = np.zeros(effects.shape, dtype=float)
+    if n_per_arm <= 1.5:
+        return out
+
+    valid = (effects > 0) & (sds > 0) & np.isfinite(effects) & np.isfinite(sds)
+    if not valid.any():
+        return out
+
+    df = 2 * n_per_arm - 2
+    ncp = np.zeros_like(effects)
+    ncp[valid] = effects[valid] / (sds[valid] * math.sqrt(2.0 / n_per_arm))
+
+    crit = float(stats.t.ppf(1 - alpha / 2, df))
+    with np.errstate(all="ignore"):
+        p = stats.nct.sf(crit, df, ncp) + stats.nct.cdf(-crit, df, ncp)
+        z = float(stats.norm.ppf(1 - alpha / 2))
+        fallback = stats.norm.sf(z - ncp) + stats.norm.cdf(-z - ncp)
+    p = np.where(np.isfinite(p), p, fallback)
+    out[valid] = np.clip(p[valid], 0.0, 1.0)
+    return out
+
+
+#: Retained name for the power function. There is deliberately only one
+#: implementation: an earlier version had a second copy in the assurance module
+#: with different NaN handling, which is exactly the kind of duplication that
+#: lets two parts of an analysis quietly disagree at the extremes.
+achieved_power = power_at
 
 
 # --------------------------------------------------------------------------
@@ -406,6 +466,118 @@ def enrichment_curve(
         )
         for e in grid
     ]
+
+
+# --------------------------------------------------------------------------
+# Confirming the subgroup claim itself
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class InteractionDesign:
+    """A 2x2 trial powered to establish effect modification, not just effect.
+
+    The enriched design above enrolls only late patients. It can confirm that
+    the therapy works *in* that stratum; it can never establish that timing
+    matters, because it contains no early patients to compare against. But
+    "treat late, not early" is the actual claim, and it is the claim a sponsor
+    would be acting on. Confirming it needs both strata and both arms.
+    """
+
+    endpoint: str
+    #: Treatment-versus-control effect in each stratum, benefit-signed.
+    effect_early: float
+    effect_late: float
+    #: The interaction contrast: how much better the late stratum does.
+    contrast: float
+    sd_pooled: float
+    n_per_cell: float
+    n_total: float
+    #: Total enrollment of the enriched two-arm design, for comparison.
+    n_enriched_reference: float
+    ratio_to_enriched: float
+
+    @property
+    def feasible(self) -> bool:
+        return math.isfinite(self.n_total)
+
+
+def interaction_design(
+    endpoint: str,
+    control_early: float = 0.0,
+    control_late: float = 0.0,
+    alpha: float = 0.05,
+    power: float = 0.80,
+    dropout: float = 0.0,
+    shrinkage: float = 1.0,
+    timepoint: str = "6mo",
+) -> InteractionDesign:
+    """Size a 2x2 trial powered on the interaction contrast.
+
+    With four equally sized cells the interaction estimate
+
+        (y_LT - y_LC) - (y_ET - y_EC)
+
+    has variance ``4 * sigma^2 / n_cell``, twice that of a simple two-arm
+    comparison at the same per-group n. Required enrollment therefore carries a
+    factor of two relative to a main-effect design of the same effect size --
+    the familiar result that interactions are expensive.
+
+    That penalty is partly offset here, because the contrast being detected is
+    larger than the late-stratum effect alone. Whether the offset wins depends
+    entirely on the control assumptions: against no control drift the contrast
+    is the full 16.9 mL and the interaction design is barely more expensive,
+    while against anchored controls much of the early stratum's apparent harm
+    is natural history, the contrast roughly halves, and the design becomes
+    materially larger.
+    """
+    ep = ENDPOINTS[endpoint]
+    eff = subgroup_effects(endpoint, timepoint)
+    sign = -1.0 if ep.lower_is_better else 1.0
+
+    e_early = sign * (eff["early"]["mean"] - control_early) * shrinkage
+    e_late = sign * (eff["late"]["mean"] - control_late) * shrinkage
+    contrast = e_late - e_early
+
+    # Pooled within-stratum SD, weighted by the n each stratum contributed.
+    n_e, n_l = eff["early"]["n"], eff["late"]["n"]
+    var_pooled = (
+        (n_e - 1) * eff["early"]["sd"] ** 2 + (n_l - 1) * eff["late"]["sd"] ** 2
+    ) / (n_e + n_l - 2)
+    sd_pooled = math.sqrt(var_pooled)
+
+    ref = design(
+        endpoint, 1.0, 0.5, control_early, control_late, alpha, power, dropout,
+        timepoint, shrinkage,
+    )
+
+    if contrast <= 0:
+        return InteractionDesign(
+            endpoint, e_early, e_late, contrast, sd_pooled,
+            math.inf, math.inf, ref.n_total, float("nan"),
+        )
+
+    # Solve as a two-arm problem on the contrast, then double for the extra
+    # variance the four-cell structure carries.
+    n_equiv = n_per_arm_exact(contrast, sd_pooled, alpha, power)
+    if not math.isfinite(n_equiv):
+        return InteractionDesign(
+            endpoint, e_early, e_late, contrast, sd_pooled,
+            math.inf, math.inf, ref.n_total, float("nan"),
+        )
+    n_cell = math.ceil(2.0 * n_equiv / max(1e-9, 1.0 - dropout))
+    n_total = 4.0 * n_cell
+    return InteractionDesign(
+        endpoint=endpoint,
+        effect_early=e_early,
+        effect_late=e_late,
+        contrast=contrast,
+        sd_pooled=sd_pooled,
+        n_per_cell=float(n_cell),
+        n_total=float(n_total),
+        n_enriched_reference=ref.n_total,
+        ratio_to_enriched=(n_total / ref.n_total) if ref.feasible and ref.n_total else float("nan"),
+    )
 
 
 def dilution_factor(endpoint: str, pi: float, timepoint: str = "6mo") -> float:

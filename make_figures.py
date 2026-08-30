@@ -26,15 +26,12 @@ from ventrigel.assurance import (
     assurance_ceiling,
     assurance_curve,
     n_for_assurance,
+    programme_grid,
 )
 from ventrigel.economics import CostModel, optimal_enrichment
 from ventrigel.inference import all_interaction_tests, multiplicity
-from ventrigel.literature import (
-    ANCHORS,
-    early_control_prior,
-    late_control_prior,
-)
-from ventrigel.power import design, enrichment_curve
+from ventrigel.literature import ANCHORS, anchored_control
+from ventrigel.power import design, enrichment_curve, interaction_design
 from ventrigel.sensitivity import bootstrap_designs, sweep_assumptions
 from ventrigel.trial_data import ENDPOINTS, N_EARLY, N_LATE
 
@@ -63,8 +60,10 @@ plt.rcParams.update(
     }
 )
 
-_ANCHORS = {"early": early_control_prior(), "late": late_control_prior()}
-CE, CL = _ANCHORS["early"].central, _ANCHORS["late"].central
+_LV = anchored_control("lvesv", "early") or (0.0, 0.0)
+_LL = anchored_control("lvesv", "late") or (0.0, 0.0)
+CE, CL = _LV[0], _LL[0]
+SE_L = _LL[1]
 
 
 def save(fig: plt.Figure, name: str) -> None:
@@ -76,8 +75,10 @@ def save(fig: plt.Figure, name: str) -> None:
 
 
 def _controls_for(key: str) -> tuple[float, float]:
-    """Anchored control assumptions apply only to the CMR volume endpoints."""
-    return (CE, CL) if key in ("lvesv", "lvedv") else (0.0, 0.0)
+    """Anchored control assumptions, per endpoint, or zero where none exists."""
+    e = anchored_control(key, "early") or (0.0, 0.0)
+    l = anchored_control(key, "late") or (0.0, 0.0)
+    return e[0], l[0]
 
 
 # --------------------------------------------------------------------------
@@ -188,7 +189,7 @@ def fig2_interaction() -> None:
 def fig3_literature_anchors() -> None:
     """External control arms: what untreated patients do."""
     fig, ax = plt.subplots(figsize=(8.2, 4.2))
-    order = ["preservation_i", "time", "empress_mi", "focus_cctrn", "focus_hf"]
+    order = ["preservation_i", "time", "empress_mi", "focus_cctrn", "focus_hf"]  # LV volume anchors only
     y = np.arange(len(order))[::-1]
 
     for i, key in zip(y, order):
@@ -282,12 +283,12 @@ def fig5_assurance() -> None:
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.9))
 
     for shrink, c, lab in ((1.00, "#9AA5B1", "no discount"), (SHRINK, LATE_C, "25% discount")):
-        res = assurance_curve(PRIMARY, ns, shrink, CL, ALPHA, n_draws=20000)
+        res = assurance_curve(PRIMARY, ns, shrink, CL, ALPHA, n_draws=20000, control_se=SE_L)
         ax.plot(ns, [r.assurance for r in res], color=c, lw=2.0, label=f"assurance, {lab}")
         if shrink == SHRINK:
             ax.plot(ns, [r.nominal_power for r in res], color=EARLY_C, lw=1.6, ls="--",
                     label="nominal power, 25% discount")
-            ceiling = assurance_ceiling(PRIMARY, shrink, CL)
+            ceiling = assurance_ceiling(PRIMARY, shrink, CL, control_se=SE_L)
             ax.axhline(ceiling, color="#222", ls=":", lw=1.2)
             ax.text(ns[0] * 1.1, ceiling - 0.055, f"ceiling {ceiling:.0%}", fontsize=7, color="#222")
 
@@ -301,7 +302,8 @@ def fig5_assurance() -> None:
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
 
     targets = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
-    needed = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000) for t in targets]
+    needed = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000, control_se=SE_L)
+              for t in targets]
     finite = [(t, n) for t, n in zip(targets, needed) if math.isfinite(n)]
     ax2.bar(
         [f"{t:.0%}" for t, _ in finite], [n for _, n in finite],
@@ -350,10 +352,17 @@ def fig6_control_drift() -> None:
         fontsize=7.4, color="#fff", zorder=5, va="top", linespacing=1.35,
     )
 
-    ep_, lp = _ANCHORS["early"], _ANCHORS["late"]
+    # The dashed box spans every published anchor for each stratum, so it shows
+    # the region the literature actually constrains rather than an assumed range.
+    early_vals = [a.absolute_change() for a in ANCHORS.values()
+                  if a.endpoint == "lvesv" and a.phase == "acute"]
+    late_vals = [a.absolute_change() for a in ANCHORS.values()
+                 if a.endpoint == "lvesv" and a.phase == "chronic"]
+    x0, x1 = min(early_vals), max(early_vals)
+    y0, y1 = min(late_vals), max(late_vals)
     ax.add_patch(
         Rectangle(
-            (ep_.low, lp.low), ep_.high - ep_.low, lp.high - lp.low,
+            (x0, y0), x1 - x0, max(y1 - y0, 0.4),
             fill=False, edgecolor=ACCENT, lw=2.0, ls="--", zorder=5,
         )
     )
@@ -462,7 +471,7 @@ def fig9_design_summary() -> None:
                     color=LATE_C, lw=3.0, alpha=0.40)
             ax.plot([b.n_total_median], [i - 0.18], "o", color=LATE_C, ms=6)
 
-    n80 = n_for_assurance(PRIMARY, 0.80, SHRINK, CL, ALPHA, n_draws=20000)
+    n80 = n_for_assurance(PRIMARY, 0.80, SHRINK, CL, ALPHA, n_draws=20000, control_se=SE_L)
     if math.isfinite(n80):
         ax.axvline(n80, color=GOOD_C, lw=1.6, ls="--")
         ax.text(n80 * 1.12, len(keys) - 1.5, f"recommended\ndesign: {n80:,.0f}",
@@ -488,6 +497,111 @@ def fig9_design_summary() -> None:
     save(fig, "fig9_design_summary")
 
 
+def fig10_anchor_uncertainty() -> None:
+    """What treating the comparator as exact costs."""
+    ns = np.unique(np.round(np.logspace(math.log10(24), math.log10(4000), 30)).astype(int))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.9))
+
+    for se, c, lab in ((0.0, "#9AA5B1", "anchor treated as exact"),
+                       (SE_L, LATE_C, f"anchor SE {SE_L:.1f} mL propagated")):
+        res = assurance_curve(PRIMARY, ns, SHRINK, CL, ALPHA, n_draws=20000, control_se=se)
+        ax.plot(ns, [r.assurance for r in res], color=c, lw=2.2, label=lab)
+        ceil = assurance_ceiling(PRIMARY, SHRINK, CL, n_draws=20000, control_se=se)
+        ax.axhline(ceil, color=c, ls=":", lw=1.2)
+        ax.text(ns[0] * 1.05, ceil + 0.012, f"ceiling {ceil:.0%}", fontsize=7, color=c)
+
+    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.6)
+    ax.set_xscale("log")
+    ax.set_xlabel("Total randomized patients")
+    ax.set_ylabel("Probability of a significant result")
+    ax.set_ylim(0, 1.02)
+    ax.set_title("The comparator is an estimate, not a constant", fontsize=9)
+    ax.legend(fontsize=7.2, frameon=False, loc="lower right")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+    targets = [0.5, 0.6, 0.7, 0.8]
+    width = 0.38
+    xs = np.arange(len(targets))
+    for i, (se, c, lab) in enumerate(
+        ((0.0, "#9AA5B1", "exact"), (SE_L, LATE_C, "propagated"))
+    ):
+        vals = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000, control_se=se)
+                for t in targets]
+        vals = [v if math.isfinite(v) else np.nan for v in vals]
+        ax2.bar(xs + (i - 0.5) * width, vals, width=width, color=c, label=lab)
+        for x, v in zip(xs + (i - 0.5) * width, vals):
+            if np.isfinite(v):
+                ax2.text(x, v * 1.06, f"{v:,.0f}", ha="center", fontsize=7)
+    ax2.set_xticks(xs)
+    ax2.set_xticklabels([f"{t:.0%}" for t in targets])
+    ax2.set_yscale("log")
+    ax2.set_xlabel("Target probability of success")
+    ax2.set_ylabel("Total randomized patients")
+    ax2.set_title("Ignoring it halves the trial on paper", fontsize=9)
+    ax2.legend(fontsize=7.5, frameon=False)
+    ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+    fig.tight_layout()
+    save(fig, "fig10_anchor_uncertainty")
+
+
+def fig11_programme_and_confirmation() -> None:
+    """Unconditional success, and the cost of confirming the claim itself."""
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.8, 4.0))
+
+    ns = np.unique(np.round(np.logspace(math.log10(40), math.log10(3000), 24)).astype(int))
+    priors = np.array([0.3, 0.5, 0.7, 1.0])
+    grid = programme_grid(PRIMARY, ns, priors, SHRINK, CL, SE_L, ALPHA, n_draws=20000)
+    shades = ["#C7D3E0", "#8FAAC4", "#5A82A8", LATE_C]
+    for j, (p, c) in enumerate(zip(priors, shades)):
+        lab = "effect certain" if p == 1.0 else f"prior {p:.0%}"
+        ax.plot(ns, grid[:, j], color=c, lw=2.2, label=lab)
+    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.6)
+    ax.set_xscale("log")
+    ax.set_xlabel("Total randomized patients")
+    ax.set_ylabel("Unconditional probability of success")
+    ax.set_ylim(0, 1.02)
+    ax.set_title(
+        "No sample size beats the prior\n"
+        "Probability the subgroup effect is real times assurance",
+        fontsize=9,
+    )
+    ax.legend(fontsize=7.2, frameon=False, loc="upper left")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+    scenarios = [
+        ("no control\ndrift", 0.0, 0.0),
+        ("anchored\ncontrols", CE, CL),
+    ]
+    labels, enriched, interaction = [], [], []
+    for name, c_e, c_l in scenarios:
+        d = interaction_design(PRIMARY, c_e, c_l, ALPHA, POWER, DROPOUT, SHRINK)
+        labels.append(name)
+        enriched.append(d.n_enriched_reference)
+        interaction.append(d.n_total)
+    xs = np.arange(len(labels))
+    w = 0.36
+    ax2.bar(xs - w / 2, enriched, width=w, color=LATE_C, label="enriched 2-arm\n(effect in late stratum)")
+    ax2.bar(xs + w / 2, interaction, width=w, color=ACCENT, label="2x2 interaction\n(does timing matter?)")
+    for x, v in zip(xs - w / 2, enriched):
+        ax2.text(x, v * 1.05, f"{v:,.0f}", ha="center", fontsize=7.5)
+    for x, v in zip(xs + w / 2, interaction):
+        ax2.text(x, v * 1.05, f"{v:,.0f}", ha="center", fontsize=7.5)
+    ax2.set_xticks(xs)
+    ax2.set_xticklabels(labels, fontsize=8)
+    ax2.set_ylabel("Total randomized patients")
+    ax2.set_title(
+        "Confirming the claim, not just the effect\n"
+        "Anchoring halves the contrast and quadruples the trial",
+        fontsize=9,
+    )
+    ax2.legend(fontsize=7, frameon=False, loc="upper left")
+    ax2.set_ylim(0, max(interaction) * 1.35)
+
+    fig.tight_layout()
+    save(fig, "fig11_programme_and_confirmation")
+
+
 def main() -> None:
     print("Generating figures...")
     fig1_cancellation()
@@ -499,6 +613,8 @@ def main() -> None:
     fig7_bootstrap()
     fig8_economics()
     fig9_design_summary()
+    fig10_anchor_uncertainty()
+    fig11_programme_and_confirmation()
     print(f"Done. {FIGURES.resolve()}")
 
 

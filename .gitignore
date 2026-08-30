@@ -4,3 +4,6 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 .streamlit/secrets.toml
+
+# Editor/agent scaffolding, not project content.
+.claude/

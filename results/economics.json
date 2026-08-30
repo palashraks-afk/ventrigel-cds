@@ -1,28 +1,11 @@
 {
-  "lvesv": {
-    "e_optimal": 1.0,
-    "n_optimal": 92.0,
-    "cost_optimal": 11589250.0,
-    "duration_months": 47.333333333333336,
-    "saving_fraction": 0.867360427587154
-  },
-  "six_min_walk": {
-    "e_optimal": 0.9825,
-    "n_optimal": 56.0,
-    "cost_optimal": 8056506.25,
-    "duration_months": 31.925,
-    "saving_fraction": 0.16200267838568755
-  },
-  "recommended": {
-    "n_total": 174.0,
-    "n_screened": 326.25,
-    "duration_months": 81.5,
-    "total_cost": 19558625.0,
-    "sites_for_calendar": {
-      "24": 29,
-      "30": 21,
-      "36": 17,
-      "48": 12
-    }
+  "n_total": 406.0,
+  "n_screened": 761.25,
+  "total_cost": 42106125.0,
+  "sites_for_calendar": {
+    "24": 68,
+    "30": 49,
+    "36": 38,
+    "48": 27
   }
 }

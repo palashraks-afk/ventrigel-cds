@@ -5,14 +5,14 @@ how likely is it to succeed, and which assumption is that answer most sensitive 
 
 Everything is derived from published summary statistics: the VentriGel first-in-man trial
 ([NCT02305602](https://clinicaltrials.gov/study/NCT02305602), Traverse et al., *JACC Basic Transl
-Sci* 2019) plus the control arms of five other randomized trials.
+Sci* 2019) plus eight published control and placebo arms.
 **No synthetic patients. No patient-level prediction.**
 
 ```bash
 pip install -r requirements.txt
 python run_analysis.py      # every number in the paper, ~1 min
-python make_figures.py      # all nine figures
-python test_ventrigel.py    # 57 tests
+python make_figures.py      # all eleven figures
+python test_ventrigel.py    # 75 tests
 streamlit run app.py        # interactive design calculator
 ```
 
@@ -25,8 +25,7 @@ rather than burying it.
 
 The trial reported that remodeling improved mainly in patients treated >12 months post-MI. But it
 only ever compared each stratum against *its own baseline* — it never tested the strata against
-**each other**. That test was missing from the literature and from the first version of this
-project. Here it is:
+**each other**. Here is that test:
 
 | endpoint | early | late | interaction p |
 |---|---|---|---|
@@ -38,116 +37,156 @@ project. Here it is:
 
 One of nine endpoints is nominally significant, and it **survives no multiplicity correction**.
 Bonferroni needs p < 0.0056; Benjamini–Hochberg rejects everything. Even collapsing the
-algebraically linked endpoints to five independent families (ejection fraction is determined by the
-two volumes) gives a threshold of 0.010, which p = 0.034 still fails.
+algebraically linked endpoints to five families (EF is determined by the two volumes) gives a
+threshold of 0.010, which p = 0.034 still fails.
 
-Two checks come back favourably, and both are worth stating:
+Two caveats on the test itself, both stated in the paper: it compares **change scores rather than
+ANCOVA** (so p = 0.034 is probably conservative, but ANCOVA needs patient-level data), and the family
+is nine endpoints **at the 6-month visit** — counting the 1- and 3-month visits would enlarge it.
 
-- **The strata are balanced at baseline** — all eight measures, minimum p = 0.46. The contrast is
-  not confounded by differing severity at entry.
+Two checks come back favourably:
+
+- **The strata are balanced at baseline** — all eight measures, minimum p = 0.46.
 - **It is not regression to the mean.** The early stratum began with the *higher* LVESV and got
-  worse; regression predicts the opposite direction.
+  worse; regression predicts the opposite.
 
 So: a suggestive, fragile signal — enough to design a trial around, not enough to assert.
-**Everything below is conditional on it.**
+**Everything below is conditional on it, and the last section prices that condition.**
 
 ---
 
-## The design consequence
+## What untreated patients actually do
 
-For LVESV the two strata move in *opposite* directions, so the pooled −0.35 mL is not a weak
-effect. It is **+9.3 and −7.6 averaging to nothing**:
+The Phase I was single-arm, so its comparator is missing. Rather than sweeping an arbitrary range,
+this analysis anchors it to published control and placebo arms:
 
-| | unselected | enriched to late |
-|---|---|---|
-| Effect vs. control | +2.64 mL | +5.70 mL |
-| SD of change | 14.3 mL | 9.1 mL |
-| **N for 80% power** | **1,046** | **92** |
-
-Enrichment works on both terms at once — it raises the effect *and* removes the between-stratum
-variance — so the gains compound in σ²/Δ².
-
-### Enrichment is not universally good
-
-The transferable finding is that the gain depends on **the sign of the effect in the stratum being
-excluded**, not on the size of the pooled effect:
-
-| endpoint | N unselected | N enriched | verdict |
-|---|---|---|---|
-| LVESV | 1,046 | 92 | enrichment is decisive |
-| viable mass | 5,230 | 70 | large, but interaction p = 0.17 |
-| MLWHFQ | 958 | 242 | helps |
-| 6-min walk | 86 | 56 | **barely worth it** — both strata improve |
-| ejection fraction | no benefit | no benefit | **enrichment is harmful** |
-
-Ejection fraction is the instructive failure: its pooled signal exists *only* because the early
-stratum declined significantly (−3.8%, p = 0.03). Enriching erases it — and since that is a possible
-safety signal, erasing it is a governance question, not just a statistical one.
-
----
-
-## Power is not probability of success
-
-The 92-patient design was solved for 80% power **at a point estimate** that rests on eight patients.
-Integrating power over the uncertainty in the effect — *assurance* — gives the real number:
-
-| N | assurance |
-|---|---|
-| 52 | 53% |
-| **92** | **68%** |
-| 174 | 80% |
-| 442 | 90% |
-
-Assurance also **plateaus at 97.5%**. No sample size does better, because that is the share of
-plausible effects that point toward benefit at all. Enrollment cannot fix an effect that is not
-there.
-
-The recommended design is therefore **174 patients**, not 92 — and at six sites it would take 82
-months to enroll. Finishing in 30–36 months needs **17–21 sites**. That is a recruitment finding,
-and it is the constraint a sponsor hits first.
-
----
-
-## The number that decides everything
-
-The Phase I was single-arm, so the comparator is missing. Rather than sweeping an arbitrary range,
-this analysis anchors it to published control arms:
-
-| trial | population | control-arm 6-month change | n |
+| source | population | control-arm 6-month change | n |
 |---|---|---|---|
 | PRESERVATION-I (2016) | large STEMI, 2–5 days | LVEDVI **+11.7** mL/m² | 102 |
 | TIME (2012) | anterior STEMI, 3–7 days | LVESVI **+4.3** mL/m² | 37 |
 | EMPRESS-MI (2025) | MI, LVEF<45%, modern GDMT | LVESVI **−7.8** mL/m² | 52 |
 | FOCUS-CCTRN (2012) | chronic ischemic, LVEF≤45% | LVESVI **0.0** mL/m² | 28 |
 | FOCUS-HF (2011) | chronic ischemic HF | LVESV **−9.9** mL | 10 |
+| EMPRESS-MI (2025) | acute | LVEF **+8.5** points | 52 |
+| FOCUS-CCTRN (2012) | chronic | LVEF **−1.3** points | 28 |
+| Khan et al. (2022)\* | HF, 38 placebo arms | 6MWT **+4.2%** ≈ +17.6 m | 2,713 |
+
+\* conference abstract, not a peer-reviewed full report — labelled as such wherever used.
 
 **The acute anchors disagree in sign, and that is the finding.** Older cohorts dilated; the
 2022–2024 cohort on contemporary therapy underwent *reverse* remodeling. Post-MI natural history is
 era-dependent.
 
-Chronic populations are stable — which matters, because the enriched trial enrolls no early
-patients. Its size is unaffected by the early assumption and depends **entirely** on the late one:
+Anchoring changes two endpoints qualitatively. Against a placebo arm whose EF *falls* 1.3 points,
+VentriGel's late-stratum −0.6 is a small **benefit**, not the null the trial reported. And the
+6-minute walk loses a third of its effect to the placebo response.
 
-- **FOCUS-CCTRN says 0.0 mL** → the design stands at 92–174 patients.
-- **FOCUS-HF says −9.9 mL** → VentriGel's −7.6 mL is *smaller than natural history*, there is no
-  effect, and no trial is worth running.
+Where two anchors compete the choice is **explicit and documented**, not automatic — selecting by
+sample size would have picked EMPRESS-MI over TIME and reversed the early comparator's sign.
 
-One number decides the project, and the two available estimates disagree. Measuring the six-month
-LVESV change in untreated chronic post-MI patients with LVEF ≤ 45% would settle it — obtainable from
-existing observational cohorts with serial CMR, with no new trial.
+---
+
+## The comparator is an estimate, and that roughly doubles the trial
+
+An anchor is an *estimate*, not a constant. FOCUS-CCTRN's "zero" comes from 28 patients, with a
+standard error of **4.4 mL** — the same order as the 7.6 mL effect measured against it:
+
+| | assurance at N=174 | ceiling | N for 80% success |
+|---|---|---|---|
+| comparator treated as exact | 80% | 97.5% | 174 |
+| **comparator uncertainty propagated** | **72%** | **90.9%** | **406** |
+
+Recovering that SE isn't direct: the trial publishes SDs of the *levels*, not of the change, so it
+depends on a test–retest correlation nobody reports
+(`SD_Δ = √(s₁² + s₂² − 2r·s₁s₂)`). At r = 0.95 the SE is 2.7 mL; at r = 0.70 it is 6.1 mL. Both that
+correlation and the body-surface-area assumption are swept — and usefully, the key anchor's point
+estimate is exactly zero at *every* plausible BSA, so only its uncertainty moves.
+
+---
+
+## The design consequence
+
+For LVESV the two strata move in *opposite* directions, so the pooled −0.35 mL is not a weak effect.
+It is **+9.3 and −7.6 averaging to nothing**. Enrichment raises the effect *and* removes the
+between-stratum variance, so gains compound in σ²/Δ²:
+
+| endpoint | N unselected | N enriched | verdict |
+|---|---|---|---|
+| **LVESV** | 1,046 | **92** | enrichment is decisive (11.4×) |
+| viable mass † | 5,230 | 70 | large, but interaction p = 0.17 |
+| MLWHFQ † | 958 | 242 | helps |
+| 6-min walk | 134 | 126 | **barely worth it** (1.1×) — placebo response hits both strata |
+| LVEDV | 126 | 366 | **enrichment is worse** here |
+| ejection fraction | no benefit | 2,282 | technically detectable, not practically |
+
+† no published anchor; assumes no control drift, so these are optimistic.
+
+The governing quantity is the effect in the stratum being **excluded**, relative to its own
+comparator — not the size of the pooled effect.
+
+---
+
+## Power is not probability of success
+
+The 92-patient design was solved for 80% power **at a point estimate** resting on eight patients.
+Assurance integrates power over uncertainty in both the effect and the comparator:
+
+| N | nominal power | assurance |
+|---|---|---|
+| 92 | 85% | **63%** |
+| 174 | 99% | 72% |
+| **406** | 100% | **80%** |
+| 1,000 | 100% | 85% |
+
+Assurance **plateaus at 90.9%** — the share of plausible effects pointing toward benefit at all.
+Enrollment cannot fix an effect that isn't there.
+
+### And the number a sponsor actually needs
+
+All of that is conditional on the subgroup effect being real. Unconditional probability of success is
+that prior × assurance:
+
+| N | prior 30% | prior 50% | prior 80% |
+|---|---|---|---|
+| 92 | 19% | 32% | 50% |
+| 406 | 24% | **40%** | 64% |
+| 800 | 25% | 42% | 67% |
+
+**The prior enters multiplicatively, so no sample size lifts the programme above it.** Beyond ~400
+patients the marginal return on enrollment is near zero — which is the quantitative case for
+spending the next increment of money on the comparator rather than on patients.
+
+---
+
+## The enriched trial can't confirm the claim it rests on
+
+A trial enrolling only late patients shows the therapy works *in that stratum*. It can never show
+that **timing matters** — there are no early patients to compare against. But "treat late, not early"
+is the actual claim.
+
+A 2×2 design powered on the interaction:
+
+| control assumption | interaction contrast | N (2×2) | vs. enriched 2-arm |
+|---|---|---|---|
+| no control drift | 12.7 mL | 124 | 1.3× |
+| **published control arms** | **6.6 mL** | **440** | 4.8× |
+
+Anchoring halves the contrast, because most of the early stratum's apparent harm is natural history
+rather than a failure of treatment. But **440 is close to the 406 an 80%-assurance enriched trial
+needs** — for roughly the same money you can answer the question you actually have.
 
 ---
 
 ## Why you can trust the arithmetic
 
-The Supplemental Appendix reports every endpoint as `mean (SEM)` with `n`, so `SD = SEM × √n`
-recovers the variance structure exactly. Two independent checks run on **every execution**:
+`SD = SEM × √n` recovers the variance structure exactly from the published tables. Two independent
+checks run on **every execution**:
 
-**1. All 38 checkable published p-values reproduce** from the transcribed mean, SEM and n via
-`t = mean/SEM` on `n−1` df — testing transcription, the SD identity, and the stated test at once.
+**1. All 38 checkable published p-values reproduce** from the transcribed mean, SEM and n — testing
+transcription, the SD identity, and the stated test at once.
 
-**2. Each pooled cohort reconstructs from its two strata** by the laws of total expectation and
-total variance. The published totals were never inputs, so agreement is a real test:
+**2. Each pooled cohort reconstructs from its two strata** by the laws of total expectation and total
+variance. The published totals were never inputs:
 
 | | reconstructed | published | error |
 |---|---|---|---|
@@ -157,8 +196,7 @@ total variance. The published totals were never inputs, so agreement is a real t
 
 Four cells are excluded with documented reasons rather than counted as passes: three BNP cells (the
 table reports percent change but its t-test column tests absolute values) and total-cohort scar
-fraction (the printed statistics imply p = 0.80, not the printed p = 0.58). Both are recorded in
-`ventrigel/trial_data.py`, not silently corrected.
+fraction (the printed statistics imply p = 0.80, not the printed p = 0.58).
 
 ---
 
@@ -168,16 +206,12 @@ An earlier version ([Zenodo 10.5281/zenodo.21516443](https://doi.org/10.5281/zen
 generated 2,000 synthetic patients from a hand-written scoring rule, trained a classifier, and
 reported **ROC-AUC = 1.00**.
 
-That result was circular. The label was a deterministic threshold function of the same features the
-model was given, so the classifier recovered an `if` statement its author had written. Dropping the
-intermediate score column removed the shortcut but not the leakage. Reported feature importances
-reproduced hand-chosen penalty weights; a described `GridSearchCV` does not appear in the code.
+That result was circular: the label was a deterministic threshold function of the same features the
+model was given, so the classifier recovered an `if` statement its author had written. See
+[`CORRECTION.md`](CORRECTION.md) and `deprecated/`.
 
-Fifteen single-arm patients cannot support individual response prediction, and simulation does not
-manufacture the missing information. See [`CORRECTION.md`](CORRECTION.md) and `deprecated/`.
-
-Simulation appears in this version only in `sensitivity.py` and `assurance.py`, and only to
-propagate uncertainty already present in the published estimates. It never creates observations.
+Simulation appears in this version only to propagate uncertainty already present in the published
+estimates. It never creates observations.
 
 ---
 
@@ -188,14 +222,14 @@ ventrigel/
   trial_data.py    published means, SEMs, n — each with its source table
   recovery.py      SD recovery + the two validation checks
   inference.py     interaction tests, multiplicity, balance, RTM  ← read first
-  literature.py    external control-arm anchors, with citations
-  power.py         sample size vs. enrichment (noncentral t)
-  assurance.py     probability of success, integrating effect uncertainty
+  literature.py    external control anchors, their SEs, and BSA/retest sweeps
+  power.py         sample size vs. enrichment, plus the 2×2 interaction design
+  assurance.py     probability of success, and prior × assurance
   economics.py     cost model, including the screening penalty
   sensitivity.py   bootstrap and assumption sweeps
-run_analysis.py    reproduces every number (9 sections)
-make_figures.py    reproduces all nine figures
-test_ventrigel.py  57 tests; power math checked against textbook values
+run_analysis.py    reproduces every number (10 sections)
+make_figures.py    reproduces all eleven figures
+test_ventrigel.py  75 tests; power math checked against textbook values
 app.py             Streamlit design calculator
 paper/             manuscript source
 deprecated/        the retired v1 classifier, with a written post-mortem
@@ -210,7 +244,8 @@ Source trial:
 > myocardial infarction patients. *JACC Basic Transl Sci.* 2019;4(6):659–669.
 > doi:10.1016/j.jacbts.2019.07.012
 
-External anchors are cited in full in `ventrigel/literature.py`.
+External anchors are cited in full in `ventrigel/literature.py` and listed with PMIDs in
+[`SOURCES.md`](SOURCES.md).
 
 This is an independent secondary analysis of published summary statistics. It was not conducted
 with, funded by, or endorsed by Ventrix, Inc., the Christman Laboratory, or any trial investigator.

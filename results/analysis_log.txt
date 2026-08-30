@@ -1,0 +1,265 @@
+VentriGel Phase II enrichment analysis, v3.0.0
+Source trial: NCT02305602
+Traverse JH, Henry TD, Dib N, et al. First-in-Man Study of a Cardiac Extracellular Matrix Hydrogel in Early and Late Myocardial Infarction Patients. JACC Basic Transl Sci. 2019;4(6):659-669.
+
+==============================================================================
+[1/10]  Is the transcription faithful?
+==============================================================================
+  Recomputed 42 published paired t-test p-values from mean, SEM and n.
+  38/38 agree at the precision the source prints.
+  4 cells excluded for documented reasons:
+    scar: Unresolved discrepancy in the source.
+    bnp: Online Table 8 reports BNP as percent change but its paired t-test column tests absolute BNP.
+    bnp: Same cause as the total-cohort BNP cell.
+
+  Pooled cohorts reconstructed from their strata; median SD error 3.3%.
+    lvesv: mean -0.36 vs published -0.35, SD 14.26 vs 14.22 (0.3%)
+
+==============================================================================
+[2/10]  Does the subgroup effect exist? (the test nobody ran)
+==============================================================================
+  The trial compared each stratum against its own baseline and observed
+  that one reached significance while the other did not. That is not a
+  test of effect modification.
+
+  endpoint          early     late      diff              95% CI        p
+  lvesv              9.30    -7.60    -16.90       [-32.2, -1.6]   0.0342 *
+  ef                -3.80    -0.60      3.20         [-1.1, 7.5]   0.1329
+  viable_mass      -10.50    15.00     25.50       [-15.1, 66.1]   0.1695
+  mlwhfq             0.70   -15.10    -15.80       [-49.9, 18.3]   0.3320
+  scar               2.30    -1.00     -3.30        [-12.9, 6.3]   0.4374
+  bnp               -6.70   -18.30    -11.60       [-51.7, 28.5]   0.5404
+  lvedv             -1.20    -7.60     -6.40       [-32.3, 19.5]   0.5913
+  six_min_walk      40.50    50.90     10.40       [-52.4, 73.2]   0.7231
+  nyha              -0.30    -0.30      0.00         [-0.9, 0.9]   1.0000
+
+  Multiplicity across 9 interaction tests:
+    lvesv          p=0.0342  Bonferroni p=0.308  BH threshold=0.0056  passes=no
+    ef             p=0.1329  Bonferroni p=1.000  BH threshold=0.0111  passes=no
+    viable_mass    p=0.1695  Bonferroni p=1.000  BH threshold=0.0167  passes=no
+    ... 6 further endpoints, all p > 0.16
+
+  Ejection fraction is determined by the two volumes, and viable mass and scar fraction partition the same myocardium on the same scan, so the nine endpoints are not nine independent questions. Collapsing each linked family to one test gives 5. Even at that denominator the Bonferroni threshold is 0.0100, which the end-systolic volume interaction at p = 0.034 still fails.
+
+  Two further caveats on the test itself, neither of which can be resolved
+  without patient-level data:
+    - It is a comparison of change scores, not an ANCOVA adjusting for
+      baseline. With balanced baselines ANCOVA is the standard and more
+      powerful choice, so p = 0.034 is probably conservative.
+    - The family is nine endpoints at the 6-month visit. The trial also
+      reported 1- and 3-month visits; counting those would enlarge the
+      family and weaken the result further. Six months is used because it
+      is the prespecified secondary-endpoint timepoint.
+
+  Baseline balance: 8/8 measures balanced (minimum p = 0.46).
+  Regression to the mean: The early stratum began with the higher lv end-systolic volume (156.8 vs 142.3 mL) and changed by +9.3 mL. Regression to the mean would have moved it down, so the observed pattern runs opposite to that artifact.
+
+  VERDICT: One endpoint of 9 shows a nominally significant interaction (lvesv, p = 0.034). It does not survive Bonferroni or Benjamini-Hochberg correction. The strata are balanced at baseline, and the pattern is not explained by regression to the mean. The finding is therefore suggestive and fragile: strong enough to justify designing a trial around, not strong enough to assert as established.
+
+==============================================================================
+[3/10]  What does an untreated patient do? (external control anchors)
+==============================================================================
+  The Phase I was single-arm, so its comparator is missing. Control-arm
+  change is anchored to published control and placebo arms. Indexed
+  volumes converted at BSA = 1.9 m2; change SDs recovered from
+  level SDs assume a test-retest correlation of 0.85.
+
+  trial                  endpoint         phase    change     SE      n  evidence
+  TIME                   lvesv            acute      +8.2   4.65     37  trial
+  PRESERVATION-I         lvedv            acute     +22.2   5.06    102  trial
+  EMPRESS-MI             lvesv            acute     -14.8   4.29     52  trial
+  FOCUS-CCTRN            lvesv          chronic      +0.0   4.41     28  trial
+  FOCUS-HF               lvesv          chronic      -9.9    n/a     10  trial
+  EMPRESS-MI             ef               acute      +8.5   1.03     52  trial
+  FOCUS-CCTRN            ef             chronic      -1.3   0.96     28  trial
+  Khan et al. systematic six_min_walk   chronic     +17.6   1.04   2713  abstract
+
+  Anchor coverage (which endpoint-stratum cells have one):
+    lvesv          early=TIME                     late=FOCUS-CCTRN
+    six_min_walk   early=NONE                     late=Khan et al. systematic review
+    viable_mass    early=NONE                     late=NONE
+    ef             early=EMPRESS-MI               late=FOCUS-CCTRN
+    lvedv          early=PRESERVATION-I           late=NONE
+    mlwhfq         early=NONE                     late=NONE
+    Cells marked NONE fall back to zero drift, which is an assumption that
+    flatters the treatment whenever the untreated course is favourable.
+
+  Where two anchors compete, the choice is explicit:
+    lvesv/early: TIME over EMPRESS-MI despite the smaller n.
+    lvesv/late: FOCUS-CCTRN over FOCUS-HF on sample size (28 vs 10) and on match: chronic, LVEF <=45%, transendocardial delivery.
+
+  BSA check: VentriGel's 148.5 mL baseline implies 78.2 mL/m2, against 65.0 mL/m2 in chronic
+  FOCUS-CCTRN. Higher, as expected for a dilated post-MI cohort.
+
+  BSA sensitivity for the late LVESV anchor (the one that matters):
+    BSA 1.75: change +0.00 mL, SE 4.06
+    BSA 1.80: change +0.00 mL, SE 4.18
+    BSA 1.85: change +0.00 mL, SE 4.29
+    BSA 1.90: change +0.00 mL, SE 4.41
+    BSA 1.95: change +0.00 mL, SE 4.52
+    BSA 2.00: change +0.00 mL, SE 4.64
+    BSA 2.05: change +0.00 mL, SE 4.76
+    The point estimate is exactly zero at every BSA; only its SE moves.
+
+  Test-retest correlation sensitivity for that anchor's SE:
+    r = 0.95: SE 2.74 mL
+    r = 0.90: SE 3.67 mL
+    r = 0.85: SE 4.41 mL
+    r = 0.80: SE 5.04 mL
+    r = 0.70: SE 6.10 mL
+
+  LVESV comparators used downstream: early +8.17 +/- 4.65, late +0.00 +/- 4.41 mL.
+  That late standard error is the single most consequential number in this
+  analysis after the interaction p-value. It is the same order as the 7.6 mL
+  effect being measured against it, and section 6 shows what happens when it
+  is propagated rather than ignored.
+
+==============================================================================
+[4/10]  Why the pooled effect is a cancellation, not a weak effect
+==============================================================================
+  endpoint           early      late    pooled  separation  oppose
+  viable_mass       -10.50     15.00      3.40       25.50  yes
+  lvesv               9.30     -7.60     -0.35       16.90  yes
+  mlwhfq              0.70    -15.10     -7.20       15.80  
+  bnp                -6.70    -18.30    -12.00       11.60  
+  six_min_walk       40.50     50.90     44.40       10.40  
+  lvedv              -1.20     -7.60     -4.90        6.40  
+  scar                2.30     -1.00      0.50        3.30  yes
+  ef                 -3.80     -0.60     -1.30        3.20  
+  nyha               -0.30     -0.30     -0.30        0.00  
+
+  Only end-systolic volume combines genuine opposition with a significant
+  interaction. Viable mass looks more dramatic but its interaction p is 0.17.
+
+==============================================================================
+[5/10]  Sample size, unselected versus enriched
+==============================================================================
+  Two-arm design, alpha=0.05, power=80%, 10% dropout,
+  noncentral t, pi=0.533, effect discount 0.75, anchored controls.
+
+  endpoint        c_early  c_late  eff unsel     N unsel  eff enr  N enrich    ratio
+  lvesv               8.2     0.0       2.64       1,046     5.70        92    11.4x
+  six_min_walk        0.0    17.6      27.51         134    25.01       126     1.1x
+  viable_mass         0.0     0.0       2.32       5,230    11.25        70    74.7x
+  ef                  8.5    -1.3      -4.03  infeasible     0.53     2,282        -
+  lvedv              22.2     0.0      11.24         126     5.70       366    worse
+  mlwhfq              0.0     0.0       5.79         958    11.32       242     4.0x
+
+  Anchoring changes two endpoints qualitatively. Ejection fraction, which
+  looked like a pure harm signal against no comparator, has a late stratum
+  falling 0.6 points against a comparator falling 1.3 -- a small benefit.
+  The 6-min walk loses a third of its effect to the placebo response and
+  is no longer the cheap option it appeared to be.
+
+==============================================================================
+[6/10]  What the anchor's own uncertainty costs
+==============================================================================
+  The late comparator is +0.00 +/- 4.41 mL from 28 patients. Treating
+  it as exact is the difference between a plausible trial and an optimistic one.
+
+                              assurance @174   ceiling   N for 80%
+  anchor treated as exact             80.1%    97.5%         174
+  anchor uncertainty propagated          72.1%    90.9%         406
+
+  Propagating it roughly doubles the trial. Every headline below uses the
+  propagated version; the exact-anchor row is shown only to size the error
+  that omitting it would introduce.
+
+==============================================================================
+[7/10]  Power is not probability of success
+==============================================================================
+  Assurance integrates power over the uncertainty in the effect and in the
+  comparator. It is what a sponsor deciding whether to fund actually needs.
+
+   N total  nominal power  assurance
+        52         60.5%     52.4%
+        92         84.8%     63.0%
+       174         98.5%     72.1%
+       300        100.0%     77.7%
+       406        100.0%     80.0%
+       600        100.0%     82.5%
+      1000        100.0%     84.8%
+
+  Ceiling: 90.9% -- the share of plausible effects favouring benefit.
+
+  Enrollment for a target probability of success:
+    50%: 48 patients
+    60%: 78 patients
+    70%: 148 patients
+    80%: 406 patients
+    85%: 1,062 patients
+
+==============================================================================
+[8/10]  Confirming the claim itself, not just the effect
+==============================================================================
+  The enriched design enrolls only late patients. It can show the therapy
+  works in that stratum; it can never show that timing matters, because it
+  contains no early patients. But 'treat late, not early' is the actual
+  claim. Confirming it needs a 2x2 trial powered on the interaction.
+
+  scenario                contrast  N/cell   N total  enriched ref   ratio
+  no control drift           12.68      31       124            92    1.3x
+  anchored controls           6.55     110       440            92    4.8x
+
+  Anchoring halves the contrast, because most of the early stratum's apparent
+  harm turns out to be natural history rather than a failure of treatment.
+  The interaction design then costs about 440 patients -- close to the 406 an
+  80%-assurance enriched trial needs. For roughly the same money a sponsor can
+  answer the question they actually have instead of half of it.
+
+==============================================================================
+[9/10]  Estimation uncertainty and the assumptions it rests on
+==============================================================================
+  endpoint           e   N median       80% interval  solvable
+  lvesv           0.53        896         173-16,648    83.1%
+  lvesv           1.00        108             34-635    97.7%
+  six_min_walk    0.53        184             64-935    98.1%
+  six_min_walk    1.00        142           38-1,090    94.5%
+  ef              0.53         --                 --     0.0%
+  ef              1.00        666         106-15,036    67.8%
+
+  Scenario analysis over the anchored control range:
+  scenario                            c_early   c_late    N unsel     N enr
+  no control drift (naive)                0.0      0.0 no benefit        92
+  anchored central                        8.2      0.0      1,046        92
+  EMPRESS-MI early comparator           -14.8      0.0 no benefit        92
+  FOCUS-HF late comparator                8.2     -9.9 no benefit no benefit
+
+  The enriched design is unaffected by the early comparator, since it enrolls
+  no early patients. It depends entirely on the late one, and FOCUS-HF's -9.9 mL
+  would nullify it outright.
+
+  Winner's-curse discount across its full range:
+    discount 0.40: enriched N 312
+    discount 0.55: enriched N 166
+    discount 0.70: enriched N 104
+    discount 0.85: enriched N 72
+    discount 1.00: enriched N 52
+
+==============================================================================
+[10/10]  The number a sponsor actually needs
+==============================================================================
+  Everything above is conditional on the interaction being real. It rests on
+  one nominally significant result out of nine that survives no correction.
+  Unconditional probability of success is that prior times the assurance.
+
+        N     30%     40%     50%     60%     80%    100%
+       92   18.9%   25.2%   31.5%   37.8%   50.4%   63.0%
+      174   21.6%   28.9%   36.1%   43.3%   57.7%   72.1%
+      300   23.3%   31.1%   38.8%   46.6%   62.1%   77.7%
+      406   24.0%   32.0%   40.0%   48.0%   64.0%   80.0%
+      800   25.2%   33.5%   41.9%   50.3%   67.1%   83.9%
+
+  The prior enters multiplicatively, so no sample size lifts the programme
+  above it. At an even-odds prior the best achievable is about 42%, and the
+  marginal return on patients beyond roughly 400 is close to nothing. That is
+  the argument for spending the next increment of money on measuring the
+  control-arm comparator rather than on more patients.
+
+  Recommended design: N=406, 761 screened, $42.1M.
+  Sites required: 68 for 24 months, 49 for 30 months, 38 for 36 months, 27 for 48 months
+
+==============================================================================
+Done
+==============================================================================
+  Results written to C:\Users\Rahul\Desktop\Ventrix\results

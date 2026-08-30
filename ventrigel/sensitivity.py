@@ -46,12 +46,12 @@ from .power import Design, EnrichedPopulation, Stratum, n_per_arm_exact, n_scree
 from .recovery import subgroup_effects
 from .trial_data import ENDPOINTS
 
-#: Default deflation applied to Phase I subgroup effects before they are used
-#: to size a Phase II. A post hoc subgroup in a 15-patient single-arm trial is
-#: the textbook setting for the winner's curse; empirical work on how effect
-#: sizes shrink from early-phase to confirmatory trials supports discounting on
-#: the order of 20-40%. 0.75 is the value used in the headline results and is
-#: swept from 0.4 to 1.0 in the reported sensitivity analysis.
+#: Deflation applied to Phase I subgroup effects where a single value is
+#: needed. A post hoc subgroup in a 15-patient single-arm trial is the textbook
+#: setting for the winner's curse, but no principled calibration of the
+#: discount is available here, so this is a reporting convenience and NOT a
+#: defended estimate. Every result that depends on it is reported across the
+#: full 0.4-1.0 range; the range is the claim, not this number.
 DEFAULT_SHRINKAGE = 0.75
 
 
