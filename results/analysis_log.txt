@@ -1,4 +1,4 @@
-VentriGel Phase II enrichment analysis, v3.0.0
+VentriGel Phase II enrichment analysis, v4.0.0
 Source trial: NCT02305602
 Traverse JH, Henry TD, Dib N, et al. First-in-Man Study of a Cardiac Extracellular Matrix Hydrogel in Early and Late Myocardial Infarction Patients. JACC Basic Transl Sci. 2019;4(6):659-669.
 

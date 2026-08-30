@@ -14,15 +14,17 @@ Modules
 ``inference``    Tests whether the subgroup effect exists, and corrects for
                  the number of endpoints examined. Read this first: everything
                  else is conditional on what it finds.
-``literature``   External control-arm anchors from published trials, replacing
-                 the single-arm design's missing comparator.
-``power``        Sample size as a function of enrichment.
-``assurance``    Probability of success, integrating over effect uncertainty.
+``literature``   External control-arm anchors from published trials, with their
+                 own standard errors, replacing the single-arm design's missing
+                 comparator.
+``power``        Sample size vs. enrichment, plus the 2x2 interaction design.
+``assurance``    Probability of success, integrating over effect and comparator
+                 uncertainty, and multiplied by the prior that the effect is real.
 ``economics``    Cost model, including the screening penalty enrichment incurs.
 ``sensitivity``  Bootstrap and assumption sweeps. The only simulation here.
 """
 
-__version__ = "3.0.0"
+__version__ = "4.0.0"
 
 from . import (
     assurance,
