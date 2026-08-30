@@ -28,10 +28,9 @@ from ventrigel.assurance import (
     n_for_assurance,
     programme_grid,
 )
-from ventrigel.economics import CostModel, optimal_enrichment
 from ventrigel.inference import all_interaction_tests, multiplicity
 from ventrigel.literature import ANCHORS, anchored_control
-from ventrigel.power import design, enrichment_curve, interaction_design
+from ventrigel.power import enrichment_curve, interaction_design
 from ventrigel.sensitivity import bootstrap_designs, sweep_assumptions
 from ventrigel.trial_data import ENDPOINTS, N_EARLY, N_LATE
 
@@ -288,43 +287,61 @@ def fig4_enrichment_curves() -> None:
 
 
 def fig5_assurance() -> None:
-    """Power versus probability of success."""
-    ns = np.unique(np.round(np.logspace(math.log10(24), math.log10(3000), 26)).astype(int))
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.9))
+    """Power against probability of success, and what the comparator's SE costs.
 
-    for shrink, c, lab in ((1.00, "#9AA5B1", "no discount"), (SHRINK, LATE_C, "25% discount")):
-        res = assurance_curve(PRIMARY, ns, shrink, CL, ALPHA, n_draws=20000, control_se=SE_L)
-        ax.plot(ns, [r.assurance for r in res], color=c, lw=2.0, label=f"assurance, {lab}")
-        if shrink == SHRINK:
-            ax.plot(ns, [r.nominal_power for r in res], color=EARLY_C, lw=1.6, ls="--",
-                    label="nominal power, 25% discount")
-            ceiling = assurance_ceiling(PRIMARY, shrink, CL, control_se=SE_L)
-            ax.axhline(ceiling, color="#222", ls=":", lw=1.2)
-            ax.text(ns[0] * 1.1, ceiling - 0.055, f"ceiling {ceiling:.0%}", fontsize=7, color="#222")
+    This merges what were two separate figures. They were both assurance curves
+    against sample size and the reader had to hold one in memory to read the
+    other, which is a sign they should have been one figure.
+    """
+    ns = np.unique(np.round(np.logspace(math.log10(24), math.log10(4000), 30)).astype(int))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.8))
 
-    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.6)
+    nominal = [r.nominal_power for r in
+               assurance_curve(PRIMARY, ns, SHRINK, CL, ALPHA, n_draws=20000, control_se=0.0)]
+    exact = assurance_curve(PRIMARY, ns, SHRINK, CL, ALPHA, n_draws=20000, control_se=0.0)
+    prop = assurance_curve(PRIMARY, ns, SHRINK, CL, ALPHA, n_draws=20000, control_se=SE_L)
+
+    ax.plot(ns, nominal, color=EARLY_C, lw=1.7, ls="--", label="nominal power")
+    ax.plot(ns, [r.assurance for r in exact], color="#9AA5B1", lw=2.0,
+            label="assurance, comparator exact")
+    ax.plot(ns, [r.assurance for r in prop], color=LATE_C, lw=2.4,
+            label=f"assurance, comparator SE {SE_L:.1f} mL")
+
+    for res, c in ((exact, "#9AA5B1"), (prop, LATE_C)):
+        se = 0.0 if c == "#9AA5B1" else SE_L
+        ceil = assurance_ceiling(PRIMARY, SHRINK, CL, n_draws=20000, control_se=se)
+        ax.axhline(ceil, color=c, ls=":", lw=1.1)
+        ax.text(ns[0] * 1.04, ceil + 0.014, f"ceiling {ceil:.0%}", fontsize=6.8, color=c)
+
+    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.55)
     ax.set_xscale("log")
     ax.set_xlabel("Total randomized patients")
     ax.set_ylabel("Probability of a significant result")
-    ax.set_ylim(0, 1.02)
+    ax.set_ylim(0, 1.03)
     ax.set_title("Nominal power overstates the real chance of success", fontsize=9)
-    ax.legend(fontsize=7, frameon=False, loc="lower right")
+    ax.legend(fontsize=6.8, frameon=False, loc="lower right")
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
 
-    targets = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
-    needed = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000, control_se=SE_L)
-              for t in targets]
-    finite = [(t, n) for t, n in zip(targets, needed) if math.isfinite(n)]
-    ax2.bar(
-        [f"{t:.0%}" for t, _ in finite], [n for _, n in finite],
-        color=[LATE_C if t < 0.85 else EARLY_C for t, _ in finite], width=0.62,
-    )
-    for i, (t, n) in enumerate(finite):
-        ax2.text(i, n * 1.08, f"{n:,.0f}", ha="center", fontsize=7.5)
+    targets = [0.5, 0.6, 0.7, 0.8]
+    xs = np.arange(len(targets))
+    w = 0.38
+    for i, (se, c, lab) in enumerate(
+        ((0.0, "#9AA5B1", "comparator exact"), (SE_L, LATE_C, "SE propagated"))
+    ):
+        vals = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000, control_se=se)
+                for t in targets]
+        vals = [v if math.isfinite(v) else np.nan for v in vals]
+        ax2.bar(xs + (i - 0.5) * w, vals, width=w, color=c, label=lab)
+        for x, v in zip(xs + (i - 0.5) * w, vals):
+            if np.isfinite(v):
+                ax2.text(x, v * 1.07, f"{v:,.0f}", ha="center", fontsize=7)
+    ax2.set_xticks(xs)
+    ax2.set_xticklabels([f"{t:.0%}" for t in targets])
     ax2.set_yscale("log")
-    ax2.set_ylabel("Total randomized patients")
     ax2.set_xlabel("Target probability of success")
-    ax2.set_title("Cost of certainty, in patients", fontsize=9)
+    ax2.set_ylabel("Total randomized patients")
+    ax2.set_title("Treating the comparator as exact halves the trial", fontsize=9)
+    ax2.legend(fontsize=7.2, frameon=False, loc="upper left")
     ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
 
     fig.tight_layout()
@@ -423,139 +440,7 @@ def fig7_bootstrap() -> None:
     save(fig, "fig7_bootstrap")
 
 
-def fig8_economics() -> None:
-    """Cost, and where the screening penalty binds."""
-    model = CostModel()
-    pis = np.linspace(0.05, 0.75, 22)
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.9))
-
-    for key, c, lab in ((PRIMARY, LATE_C, "LVESV"), ("six_min_walk", ACCENT, "6-min walk")):
-        c_e, c_l = _controls_for(key)
-        costs, estar = [], []
-        for pi in pis:
-            sweep = enrichment_curve(
-                key, float(pi), c_e, c_l, ALPHA, POWER, DROPOUT, n_points=61, shrinkage=SHRINK
-            )
-            try:
-                best, _ = optimal_enrichment(sweep, model)
-            except ValueError:
-                costs.append(np.nan)
-                estar.append(np.nan)
-                continue
-            costs.append(best.total_cost / 1e6)
-            estar.append(best.design.e)
-        ax.plot(pis, costs, color=c, lw=1.8, label=lab)
-        ax2.plot(pis, estar, color=c, lw=1.8, label=lab)
-
-    ax.set_xlabel("Late-stratum prevalence in the eligible pool")
-    ax.set_ylabel("Cost of the cheapest viable design ($M)")
-    ax.set_title("Rarer responders cost more to find", fontsize=9)
-    ax.legend(fontsize=7.5, frameon=False)
-
-    ax2.plot(pis, pis, color="#999", ls=":", lw=1.2, label="unselected ($e=\\pi$)")
-    ax2.set_xlabel("Late-stratum prevalence in the eligible pool")
-    ax2.set_ylabel("Cost-optimal enrichment $e^*$")
-    ax2.set_ylim(-0.03, 1.05)
-    ax2.set_title("When full enrichment stops paying", fontsize=9)
-    ax2.legend(fontsize=7.5, frameon=False, loc="center right")
-    fig.tight_layout()
-    save(fig, "fig8_economics")
-
-
-def fig9_design_summary() -> None:
-    """One panel a trial designer can act on."""
-    keys = ["lvesv", "viable_mass", "mlwhfq", "lvedv", "six_min_walk", "ef"]
-    fig, ax = plt.subplots(figsize=(7.6, 4.2))
-    y = np.arange(len(keys))[::-1]
-
-    for i, key in zip(y, keys):
-        c_e, c_l = _controls_for(key)
-        u = design(key, PI, PI, c_e, c_l, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
-        b = bootstrap_designs(key, 1.0, PI, c_e, c_l, SHRINK, ALPHA, POWER, DROPOUT)
-        if u.favors_treatment and u.feasible:
-            ax.plot([u.n_total], [i + 0.18], "s", color=EARLY_C, ms=6)
-        else:
-            ax.plot([2.1e5], [i + 0.18], ">", color=EARLY_C, ms=8, clip_on=False)
-        if math.isfinite(b.n_total_median):
-            ax.plot([b.n_total_q10, b.n_total_q90], [i - 0.18, i - 0.18],
-                    color=LATE_C, lw=3.0, alpha=0.40)
-            ax.plot([b.n_total_median], [i - 0.18], "o", color=LATE_C, ms=6)
-
-    n80 = n_for_assurance(PRIMARY, 0.80, SHRINK, CL, ALPHA, n_draws=20000, control_se=SE_L)
-    if math.isfinite(n80):
-        ax.axvline(n80, color=GOOD_C, lw=1.6, ls="--")
-        ax.text(n80 * 1.12, len(keys) - 1.5, f"recommended\ndesign: {n80:,.0f}",
-                fontsize=7.5, color=GOOD_C)
-
-    ax.set_xscale("log")
-    ax.set_yticks(y)
-    ax.set_yticklabels([ENDPOINTS[k].label for k in keys], fontsize=8)
-    ax.set_xlabel("Total randomized patients required (log scale)")
-    ax.set_xlim(10, 3e5)
-    ax.set_ylim(-0.7, len(keys) - 0.3)
-    ax.plot([], [], "s", color=EARLY_C, ms=6, label="unselected cohort")
-    ax.plot([], [], ">", color=EARLY_C, ms=8, label="unselected: no benefit at any N")
-    ax.plot([], [], "o", color=LATE_C, ms=6, label="enriched (median, 80% interval)")
-    ax.legend(fontsize=7.3, frameon=False, loc="upper center",
-              bbox_to_anchor=(0.5, -0.16), ncol=3, columnspacing=1.2)
-    ax.set_title(
-        "What each candidate primary endpoint would cost in patients\n"
-        "Control arms anchored to published trials; 25% effect discount; full estimation uncertainty",
-        fontsize=9,
-    )
-    fig.tight_layout()
-    save(fig, "fig9_design_summary")
-
-
-def fig10_anchor_uncertainty() -> None:
-    """What treating the comparator as exact costs."""
-    ns = np.unique(np.round(np.logspace(math.log10(24), math.log10(4000), 30)).astype(int))
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.9))
-
-    for se, c, lab in ((0.0, "#9AA5B1", "anchor treated as exact"),
-                       (SE_L, LATE_C, f"anchor SE {SE_L:.1f} mL propagated")):
-        res = assurance_curve(PRIMARY, ns, SHRINK, CL, ALPHA, n_draws=20000, control_se=se)
-        ax.plot(ns, [r.assurance for r in res], color=c, lw=2.2, label=lab)
-        ceil = assurance_ceiling(PRIMARY, SHRINK, CL, n_draws=20000, control_se=se)
-        ax.axhline(ceil, color=c, ls=":", lw=1.2)
-        ax.text(ns[0] * 1.05, ceil + 0.012, f"ceiling {ceil:.0%}", fontsize=7, color=c)
-
-    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.6)
-    ax.set_xscale("log")
-    ax.set_xlabel("Total randomized patients")
-    ax.set_ylabel("Probability of a significant result")
-    ax.set_ylim(0, 1.02)
-    ax.set_title("The comparator is an estimate, not a constant", fontsize=9)
-    ax.legend(fontsize=7.2, frameon=False, loc="lower right")
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
-
-    targets = [0.5, 0.6, 0.7, 0.8]
-    width = 0.38
-    xs = np.arange(len(targets))
-    for i, (se, c, lab) in enumerate(
-        ((0.0, "#9AA5B1", "exact"), (SE_L, LATE_C, "propagated"))
-    ):
-        vals = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000, control_se=se)
-                for t in targets]
-        vals = [v if math.isfinite(v) else np.nan for v in vals]
-        ax2.bar(xs + (i - 0.5) * width, vals, width=width, color=c, label=lab)
-        for x, v in zip(xs + (i - 0.5) * width, vals):
-            if np.isfinite(v):
-                ax2.text(x, v * 1.06, f"{v:,.0f}", ha="center", fontsize=7)
-    ax2.set_xticks(xs)
-    ax2.set_xticklabels([f"{t:.0%}" for t in targets])
-    ax2.set_yscale("log")
-    ax2.set_xlabel("Target probability of success")
-    ax2.set_ylabel("Total randomized patients")
-    ax2.set_title("Ignoring it halves the trial on paper", fontsize=9)
-    ax2.legend(fontsize=7.5, frameon=False)
-    ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
-
-    fig.tight_layout()
-    save(fig, "fig10_anchor_uncertainty")
-
-
-def fig11_programme_and_confirmation() -> None:
+def fig8_programme_and_confirmation() -> None:
     """Unconditional success, and the cost of confirming the claim itself."""
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.8, 4.0))
 
@@ -609,7 +494,7 @@ def fig11_programme_and_confirmation() -> None:
     ax2.set_ylim(0, max(interaction) * 1.35)
 
     fig.tight_layout()
-    save(fig, "fig11_programme_and_confirmation")
+    save(fig, "fig8_programme_and_confirmation")
 
 
 def main() -> None:
@@ -621,10 +506,7 @@ def main() -> None:
     fig5_assurance()
     fig6_control_drift()
     fig7_bootstrap()
-    fig8_economics()
-    fig9_design_summary()
-    fig10_anchor_uncertainty()
-    fig11_programme_and_confirmation()
+    fig8_programme_and_confirmation()
     print(f"Done. {FIGURES.resolve()}")
 
 

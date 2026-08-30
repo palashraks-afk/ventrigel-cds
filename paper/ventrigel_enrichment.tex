@@ -27,6 +27,22 @@
 \setlength{\textfloatsep}{10pt plus 1.0pt minus 2.0pt}
 \setlength{\intextsep}{10pt plus 1.0pt minus 2.0pt}
 
+% Float placement. LaTeX's defaults are conservative enough that a paper with
+% this many two-column figures backs up its float queue and dumps the overflow
+% at the end of the document, orphaning figures from the text that cites them
+% and leaving half-empty pages. These raise the ceilings so a float can be
+% placed on or near the page it belongs to.
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+\setcounter{dbltopnumber}{3}
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\dbltopfraction}{0.92}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.06}
+\renewcommand{\floatpagefraction}{0.75}
+\renewcommand{\dblfloatpagefraction}{0.75}
+
 \titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
 \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
 \titlespacing*{\section}{0pt}{11pt}{4pt}
@@ -406,16 +422,7 @@ comparator.
 
 \subsection{The comparator's own uncertainty roughly doubles the trial}
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{../results/figures/fig10_anchor_uncertainty.pdf}
-\caption{Treating the comparator as a constant is optimistic. Propagating its 4.4 mL standard error
-lowers the achievable ceiling and roughly doubles the enrollment needed for a given probability of
-success.}
-\label{fig:anchorunc}
-\end{figure*}
-
-Figure~\ref{fig:anchorunc} isolates a step that is easy to skip. The chronic comparator is
+Figure~\ref{fig:assurance} isolates a step that is easy to skip. The chronic comparator is
 $0.0\pm4.4$ mL. Treating it as exact gives 80\% assurance at 174 patients and a ceiling of 97.5\%.
 Propagating it gives 72\% assurance at the same 174 patients, a ceiling of 90.9\%, and
 \textbf{406 patients} for 80\% probability of success.
@@ -437,7 +444,7 @@ success.}
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{../results/figures/fig11_programme_and_confirmation.pdf}
+\includegraphics[width=\textwidth]{../results/figures/fig8_programme_and_confirmation.pdf}
 \caption{Left: unconditional probability of success is the prior on the subgroup effect times the
 assurance, so no sample size beats the prior. Right: the cost of confirming that timing matters,
 rather than only that the therapy works in one stratum.}
@@ -482,31 +489,20 @@ patients per stratum cannot pin a sample size precisely.}
 \label{fig:boot}
 \end{figure*}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{../results/figures/fig9_design_summary.pdf}
-\caption{Required enrollment per candidate primary endpoint, with the recommended design marked.}
-\label{fig:summary}
-\end{figure}
 
 Figure~\ref{fig:drift} maps the full assumption space. The enriched design enrolls no early patients,
 so its own size is unaffected by the early comparator; it depends entirely on the late one. Under
 FOCUS-CCTRN's zero the design stands; under FOCUS-HF's $-9.9$ mL, VentriGel's $-7.6$ mL is smaller
-than natural history and no trial is worth running. Figures~\ref{fig:boot} and~\ref{fig:summary}
-report estimation uncertainty; the enriched end-systolic volume design has a bootstrap median of 108
-with an 80\% interval of 34 to 635.
+than natural history and no trial is worth running. Figure~\ref{fig:boot} reports estimation
+uncertainty; the enriched end-systolic volume design has a bootstrap median of 108 with an 80\%
+interval of 34 to 635.
 
 Under the stated cost assumptions the 406-patient recommended design requires 761 screens and
 approximately \$42M, and needs 38 sites to complete in 36 months against the six that ran the Phase I.
-Figure~\ref{fig:econ} shows the screening penalty binding as responders thin.
+The screening penalty binds harder as responders thin: enrollment stays fixed but the screens needed
+to find that enrollment scale as $1/\pi$, so recruitment duration rather than sample size becomes the
+binding constraint in a scarce population.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{../results/figures/fig8_economics.pdf}
-\caption{Cost of the cheapest viable design as responders become scarcer, and the enrichment level at
-which full enrichment stops paying.}
-\label{fig:econ}
-\end{figure*}
 
 \section{Discussion}
 
