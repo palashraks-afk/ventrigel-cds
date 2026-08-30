@@ -22,7 +22,7 @@ patients, biology, or trial design.
 
 The training data were 2,000 synthetic records produced by `synthetic_generator.py`. For each
 record the script computed a `Suitability_Score`, starting at 100 and deducting points for
-violating trial criteria (ejection fraction outside 25–45%, time since infarction outside 60–1095
+violating trial criteria (ejection fraction outside 25-45%, time since infarction outside 60-1095
 days) and for soft risk factors, then thresholded that score at 60 to produce the binary label
 `Optimal_Candidate`.
 
@@ -51,11 +51,11 @@ so the target stayed determined by the inputs.
 
 3. **The partial-dependence thresholds.** The reported probability cliff below 28% ejection fraction
    is the 25% rule boundary plus tree granularity, not a biological transition. The reported
-   efficacy drop-off beyond 24 months post-MI corresponds to nothing in the generator at all — its
+   efficacy drop-off beyond 24 months post-MI corresponds to nothing in the generator at all. Its
    rule window ran to 1,095 days (36 months). That figure should not have appeared.
 
-4. **The hyperparameter search.** The manuscript described a `GridSearchCV` over 100–500 estimators
-   and depths 5–20 "converging at 300 estimators with a maximum depth of 12." The training script in
+4. **The hyperparameter search.** The manuscript described a `GridSearchCV` over 100-500 estimators
+   and depths 5-20 "converging at 300 estimators with a maximum depth of 12." The training script in
    the repository contains no grid search.
 
 5. **The commercial estimate.** "A 30 percent reduction in cohort size through optimized screening

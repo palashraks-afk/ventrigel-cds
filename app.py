@@ -108,7 +108,7 @@ st.markdown(
     f"conditional on a subgroup effect that is <b>nominally significant for one of nine "
     f"endpoints (p = {_ev.strongest_p:.3f}) and survives no multiplicity correction</b>. "
     "The strata are balanced at baseline and the pattern is not regression to the mean, "
-    "so it is worth designing around — but it is not established. The last tab converts "
+    "so it is worth designing around, but it is not established. The last tab converts "
     "that into an unconditional probability of success.</div>",
     unsafe_allow_html=True,
 )
@@ -322,7 +322,7 @@ with tabs[0]:
     st.caption(why)
     st.info(
         "**Two caveats on the test itself**, neither resolvable without patient-level data. "
-        "It compares change scores rather than adjusting for baseline by ANCOVA — with "
+        "It compares change scores rather than adjusting for baseline by ANCOVA, and with "
         "balanced baselines ANCOVA is the standard and more powerful choice, so p = 0.034 is "
         "probably conservative. And the family is nine endpoints at the 6-month visit; the "
         "trial also reported 1- and 3-month visits, and counting those would enlarge the "
@@ -331,7 +331,7 @@ with tabs[0]:
 
     cc1, cc2 = st.columns(2)
     with cc1:
-        st.markdown("**Baseline balance** — the strata were not randomized against each other.")
+        st.markdown("**Baseline balance.** The strata were not randomized against each other.")
         bal = baseline_balance()
         st.dataframe(
             pd.DataFrame([
@@ -342,7 +342,7 @@ with tabs[0]:
         )
         st.success(f"All {len(bal)} balanced (minimum p = {min(b.p_value for b in bal):.2f}).")
     with cc2:
-        st.markdown("**Regression to the mean** — the most obvious artifact.")
+        st.markdown("**Regression to the mean.** The most obvious artifact.")
         rtm = regression_to_mean_check("lvesv")
         st.write(rtm.explanation)
         if rtm.contradicts_rtm:
@@ -372,11 +372,11 @@ with tabs[1]:
     st.warning(
         "**The acute anchors disagree in sign, and that is the finding.** Older trials show "
         "dilation (TIME +4.3 mL/m², PRESERVATION-I +11.7 mL/m²); EMPRESS-MI, enrolling "
-        "2022–2024 on contemporary therapy, shows end-systolic volume *falling* 7.8 mL/m² with "
+        "2022-2024 on contemporary therapy, shows end-systolic volume *falling* 7.8 mL/m² with "
         "ejection fraction rising 8.5 points. Post-MI natural history is era-dependent."
     )
 
-    st.markdown("**Anchor coverage** — cells marked NONE assume no control drift.")
+    st.markdown("**Anchor coverage.** Cells marked NONE assume no control drift.")
     cov = anchor_coverage()
     st.dataframe(
         pd.DataFrame([
@@ -406,7 +406,7 @@ with tabs[1]:
             "The late anchor's point estimate is exactly zero at every BSA; only its SE moves."
         )
     with a2:
-        st.markdown(f"**Test–retest correlation** (assumed {DEFAULT_RETEST_R})")
+        st.markdown(f"**Test-retest correlation** (assumed {DEFAULT_RETEST_R})")
         st.dataframe(
             pd.DataFrame([{"r": r, "Anchor SE (mL)": round(se, 2)}
                           for r, se in retest_sensitivity()]),
@@ -553,17 +553,17 @@ with tabs[4]:
         rows.append({
             "Control assumption": label,
             f"Interaction contrast ({ep.unit})": round(d_.contrast, 2),
-            "N per cell": "—" if not d_.feasible else f"{d_.n_per_cell:,.0f}",
-            "N total (2×2)": "—" if not d_.feasible else f"{d_.n_total:,.0f}",
+            "N per cell": "n/a" if not d_.feasible else f"{d_.n_per_cell:,.0f}",
+            "N total (2×2)": "n/a" if not d_.feasible else f"{d_.n_total:,.0f}",
             "Enriched 2-arm N": f"{d_.n_enriched_reference:,.0f}",
-            "Ratio": "—" if not d_.feasible else f"{d_.ratio_to_enriched:.1f}×",
+            "Ratio": "n/a" if not d_.feasible else f"{d_.ratio_to_enriched:.1f}×",
         })
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     st.markdown(
         "With four equally sized cells the interaction estimate carries **twice the variance** "
         "of a simple two-arm comparison, which is the familiar reason interactions are "
         "expensive. That penalty is offset here because the contrast being detected is larger "
-        "than the late-stratum effect alone — but anchoring the comparator roughly halves the "
+        "than the late-stratum effect alone, but anchoring the comparator roughly halves the "
         "contrast, because most of the early stratum's apparent harm turns out to be natural "
         "history rather than a failure of treatment."
     )
@@ -586,11 +586,11 @@ with tabs[5]:
                                     alpha, power_target, dropout)
         m1, m2, m3 = st.columns(3)
         if b_e.feasible_fraction < 0.05:
-            m1.metric("Median N (enriched)", "—")
-            m2.metric("80% interval", "—")
+            m1.metric("Median N (enriched)", "n/a")
+            m2.metric("80% interval", "n/a")
         else:
             m1.metric("Median N (enriched)", fmt(b_e.n_total_median))
-            m2.metric("80% interval", f"{fmt(b_e.n_total_q10)} – {fmt(b_e.n_total_q90)}")
+            m2.metric("80% interval", f"{fmt(b_e.n_total_q10)} - {fmt(b_e.n_total_q90)}")
         m3.metric("Draws favouring treatment", f"{b_e.feasible_fraction:.0%}")
         fig = go.Figure()
         for b, name in ((b_u, "unselected"), (b_e, "enriched")):
@@ -605,7 +605,7 @@ with tabs[5]:
             "than discarded, since discarding them would bias the interval optimistically."
         )
     else:
-        st.caption("The subgroup estimates rest on 6–8 patients each. Press the button.")
+        st.caption("The subgroup estimates rest on 6-8 patients each. Press the button.")
 
     st.divider()
     st.markdown("**Sites needed to finish on a given calendar**")
@@ -631,7 +631,7 @@ with tabs[6]:
                 "Endpoint": e.label, "Unit": e.unit,
                 "Early (<12mo)": f"{t['early'].mean:+.2f} ± {t['early'].sem:.1f} (n={t['early'].n})",
                 "Late (>12mo)": f"{t['late'].mean:+.2f} ± {t['late'].sem:.1f} (n={t['late'].n})",
-                "Pooled": f"{t['total'].mean:+.2f}" if "total" in t else "—",
+                "Pooled": f"{t['total'].mean:+.2f}" if "total" in t else "n/a",
                 "Source": e.source_table,
             }
             for _, e in ENDPOINTS.items()
@@ -661,7 +661,7 @@ with tabs[7]:
               f"{float(np.median([m.sd_rel_error for m in mixes])) * 100:.1f}%")
     st.markdown(
         "**Check 1.** Each published paired t-test p-value is recomputed from the transcribed "
-        "mean, SEM and n — testing the transcription, the identity `SD = SEM × √n`, and the "
+        "mean, SEM and n, testing the transcription, the identity `SD = SEM × √n`, and the "
         "stated test simultaneously."
     )
     st.dataframe(
@@ -706,15 +706,15 @@ to nothing**.
 ### How strong is the evidence
 
 Weak, and the first tab says so. Exactly one of nine endpoints shows a nominally significant
-interaction (p = 0.034) and it survives neither Bonferroni nor Benjamini–Hochberg. Two checks
-come back favourably — balanced baselines, and a pattern running opposite to regression to the
-mean — but the finding is suggestive, not established.
+interaction (p = 0.034) and it survives neither Bonferroni nor Benjamini-Hochberg. Two checks
+come back favourably, namely balanced baselines and a pattern running opposite to regression to
+the mean, but the finding is suggestive, not established.
 
 ### What this is not
 
 Not a patient-level response predictor. An earlier version of this project tried to be one: it
 generated 2,000 synthetic patients from a hand-written scoring rule, trained a classifier, and
-reported near-perfect accuracy. That accuracy was circular — the labels were a deterministic
+reported near-perfect accuracy. That accuracy was circular. The labels were a deterministic
 function of the same features the model saw. Fifteen single-arm patients cannot support
 individual prediction. That code is retained in `deprecated/` with a written post-mortem, and
 `CORRECTION.md` is the retraction notice.
@@ -727,7 +727,7 @@ The enriched design enrolls no early patients, so its size depends entirely on w
 *late* patients do. FOCUS-CCTRN (n = 28) says zero; FOCUS-HF (n = 10) says −9.9 mL, under which
 VentriGel's −7.6 mL is smaller than natural history and there is no effect at all.
 
-That anchor also carries its own standard error of about 4 mL — the same order as the effect
+That anchor also carries its own standard error of about 4 mL, the same order as the effect
 being measured against it. Propagating it roughly doubles the required trial, which is why the
 "propagate the anchors' own uncertainty" box is on by default.
 

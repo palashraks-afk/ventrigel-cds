@@ -82,8 +82,8 @@ Hydrogel}}
     its strata. The between-stratum interaction, which the trial did not test, was evaluated and
     corrected for multiplicity. The missing control arm was anchored to eight published control and
     placebo arms, and those anchors' own standard errors were propagated rather than ignored.
-    Results are reported as assurance -- power integrated over effect and comparator uncertainty --
-    and then multiplied by the probability that the subgroup effect is real at all.
+    Results are reported as assurance, meaning power integrated over effect and comparator
+    uncertainty, and then multiplied by the probability that the subgroup effect is real at all.
     \textbf{Results.} All 38 $p$-values reproduced; median SD reconstruction error 3.3\% (0.3\% for
     end-systolic volume). Exactly one of nine endpoints shows a nominally significant interaction
     (end-systolic volume, $-16.9$ mL, 95\% CI $-32.2$ to $-1.6$, $p=0.034$); it survives neither
@@ -120,8 +120,8 @@ often decisive. Phase II costs scale steeply with enrollment~\cite{moore2018}, s
 Phase II onward are low~\cite{wong2019}, and single-asset sponsors frequently exhaust their capital
 between the two phases.
 
-Restricting enrollment to patients more likely to respond --- \emph{enrichment} --- is an
-established regulatory strategy for exactly this situation~\cite{fda2019, temple2010}. What is less
+Restricting enrollment to patients more likely to respond, a strategy known as
+\emph{enrichment}, is established in regulatory guidance for exactly this situation~\cite{fda2019, temple2010}. What is less
 often made explicit is that the gain depends on the \emph{structure} of the heterogeneity, not
 merely its presence, and can be negative.
 
@@ -138,7 +138,7 @@ from decellularized porcine myocardial extracellular matrix~\cite{singelyn2009, 
 The trial was single-arm and not powered for efficacy; one stated purpose was to inform which
 patients a later trial should enroll.
 
-This paper asks what that finding implies quantitatively, and --- equally --- how much of it
+This paper asks what that finding implies quantitatively, and just as importantly, how much of it
 survives scrutiny. It does not attempt to predict whether an individual patient will respond, a
 claim fifteen single-arm patients cannot support and which is separately problematic on statistical
 grounds~\cite{senn2004}.
@@ -214,7 +214,7 @@ baseline moved further from the mean, which regression cannot produce.
 
 \subsection{Anchoring the missing comparator, with its uncertainty}
 
-The Phase I was single-arm, so the early--late contrast confounds effect modification with
+The Phase I was single-arm, so the early versus late contrast confounds effect modification with
 differential natural history. Rather than sweeping an arbitrary range, the control-arm change was
 anchored to published control and placebo arms measuring the same endpoints over approximately six
 months in comparable populations: TIME~\cite{traverse2012}, PRESERVATION-I~\cite{rao2016} and
@@ -236,7 +236,7 @@ is never reported:
 \mathrm{SD}_{\Delta}=\sqrt{s_1^2+s_2^2-2r\,s_1 s_2}.
 \end{equation}
 Taking $r=0.85$, the conservative end of the range for serial cardiac magnetic resonance, gives a
-standard error of 4.4\,mL --- the same order as the 7.6\,mL effect being measured against it. That
+standard error of 4.4\,mL, the same order as the 7.6\,mL effect being measured against it. That
 standard error is propagated through every downstream calculation, and the consequence of omitting
 it is reported separately because it is large.
 
@@ -281,7 +281,7 @@ explicit and show its consequence.
 \subsection{Confirming the claim, not only the effect}
 
 An enriched trial enrolls only late patients, so it can establish that the therapy works in that
-stratum but never that timing matters --- which is the claim being acted on. A 2$\times$2 design
+stratum but never that timing matters, which is the claim being acted on. A 2$\times$2 design
 addresses it. With four equal cells the interaction estimate
 $(\bar y_{LT}-\bar y_{LC})-(\bar y_{ET}-\bar y_{EC})$ has variance $4\sigma^2/n_{\text{cell}}$,
 twice that of a two-arm comparison at the same per-group $n$, so required enrollment carries a factor
@@ -304,8 +304,8 @@ already present in the published estimates or to map assumptions; never to creat
 All 38 checkable published $p$-values were reproduced at the precision the source prints. Four cells
 were excluded for documented reasons: three B-type natriuretic peptide cells, whose table reports
 percent change while its $t$-test column tests absolute values, and total-cohort scar fraction, where
-the printed statistics imply $p=0.80$ rather than the printed $p=0.58$ --- an unresolved source
-discrepancy, recorded and not corrected.
+the printed statistics imply $p=0.80$ rather than the printed $p=0.58$. This is an unresolved
+discrepancy in the source, recorded and not corrected.
 
 Reconstructing each pooled cohort from its strata gave a median standard-deviation error of 3.3\%.
 For end-systolic volume the reconstruction returned $-0.36$ mL against a published $-0.35$ mL and
@@ -335,8 +335,8 @@ Two checks favour the finding. The strata are balanced on all eight reported bas
 regression to the mean: the early stratum began with the \emph{higher} end-systolic volume and got
 worse.
 
-The honest reading is a suggestive, fragile signal --- adequate to justify designing a trial around,
-not adequate to assert. Everything below is conditional on it, and Section~3.7 prices that condition.
+The honest reading is that this is a suggestive but fragile signal. It is adequate to justify
+designing a trial around, and not adequate to assert. Everything below is conditional on it, and Section~3.7 prices that condition.
 
 \subsection{What untreated patients do}
 
@@ -404,8 +404,8 @@ Ejection fr.\ (\%) & $-4.03$ & \emph{none} & $0.53$ & 2{,}282 \\
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{../results/figures/fig4_enrichment_curves.pdf}
-\caption{Left: required sample size against enrichment level. Right: the mechanism --- enrichment
-raises the effect and lowers the standard deviation at once.}
+\caption{Left: required sample size against enrichment level. Right: the mechanism, which is that
+enrichment raises the effect and lowers the standard deviation at once.}
 \label{fig:curves}
 \end{figure*}
 
@@ -420,6 +420,14 @@ the acute comparator's large positive drift makes the unselected contrast bigger
 one. The governing quantity is the effect in the stratum being excluded, relative to its own
 comparator.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/fig7_bootstrap.pdf}
+\caption{Bootstrap distributions of required enrollment. Intervals are wide because six to eight
+patients per stratum cannot pin a sample size precisely.}
+\label{fig:boot}
+\end{figure*}
+
 \subsection{The comparator's own uncertainty roughly doubles the trial}
 
 Figure~\ref{fig:assurance} isolates a step that is easy to skip. The chronic comparator is
@@ -427,10 +435,24 @@ $0.0\pm4.4$ mL. Treating it as exact gives 80\% assurance at 174 patients and a 
 Propagating it gives 72\% assurance at the same 174 patients, a ceiling of 90.9\%, and
 \textbf{406 patients} for 80\% probability of success.
 
-The body-surface-area assumption turns out not to matter for the point estimate --- the late anchor is
-exactly zero at every value in the plausible range --- but it moves the standard error from 4.06 to
+The body-surface-area assumption turns out not to matter for the point estimate, since the late
+anchor is exactly zero at every value in the plausible range, but it moves the standard error from 4.06 to
 4.76 mL. The unpublished test-retest correlation matters more, moving it from 2.74 mL at $r=0.95$ to
 6.10 mL at $r=0.70$.
+
+% Declared here rather than in Section 3.9 where it is cited. A two-column
+% float declared late in the source has only the remaining text to be placed
+% against, and both of the last two figures were being pushed past the
+% Discussion onto float pages beside the bibliography. Declaring them a section
+% or two early gives LaTeX pages to place them on; the caption numbering still
+% follows the order of declaration, which matches the order of citation.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../results/figures/fig6_control_drift.pdf}
+\caption{Enrichment advantage across the comparator assumption space. Below the white line the
+enriched design fails outright, because assumed natural history exceeds the treatment effect.}
+\label{fig:drift}
+\end{figure}
 
 \subsection{Power, probability of success, and the prior}
 
@@ -458,7 +480,7 @@ at 174 patients and 80\% at 406, and is bounded above by 90.9\%.
 Multiplying by a prior on the subgroup effect being real changes the picture again. At an even-odds
 prior the 406-patient design has an unconditional probability of success of 40\%, and no sample size
 lifts the programme above the prior itself. Beyond roughly 400 patients the marginal return on
-enrollment is close to nothing --- which is the quantitative case for spending the next increment of
+enrollment is close to nothing. That is the quantitative case for spending the next increment of
 money on the comparator rather than on patients.
 
 \subsection{Confirming the claim costs about the same}
@@ -472,23 +494,6 @@ That 440 is close to the 406 an 80\%-assurance enriched trial needs. For approxi
 enrollment a sponsor can answer the question they actually have.
 
 \subsection{Estimation uncertainty and feasibility}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{../results/figures/fig6_control_drift.pdf}
-\caption{Enrichment advantage across the comparator assumption space. Below the white line the
-enriched design fails outright, because assumed natural history exceeds the treatment effect.}
-\label{fig:drift}
-\end{figure}
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{../results/figures/fig7_bootstrap.pdf}
-\caption{Bootstrap distributions of required enrollment. Intervals are wide because six to eight
-patients per stratum cannot pin a sample size precisely.}
-\label{fig:boot}
-\end{figure*}
-
 
 Figure~\ref{fig:drift} maps the full assumption space. The enriched design enrolls no early patients,
 so its own size is unaffected by the early comparator; it depends entirely on the late one. Under
@@ -617,7 +622,7 @@ Temple R. Enrichment of clinical study populations. \textit{Clin Pharmacol Ther}
 2010;88(6):774--778.
 
 \bibitem{wang2007}
-Wang R, Lagakos SW, Ware JH, Hunter DJ, Drazen JM. Statistics in medicine --- reporting of subgroup
+Wang R, Lagakos SW, Ware JH, Hunter DJ, Drazen JM. Statistics in medicine: reporting of subgroup
 analyses in clinical trials. \textit{N Engl J Med}. 2007;357(21):2189--2194.
 
 \bibitem{sun2010}

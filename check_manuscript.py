@@ -32,7 +32,7 @@ def load() -> dict:
 def norm(text: str) -> str:
     """Strip LaTeX escapes and unify dashes so numbers match plain digits."""
     text = text.replace("\\%", "%").replace("{,}", ",").replace("\\,", " ")
-    text = text.replace("–", "-").replace("—", "-").replace("−", "-")
+    text = text.replace("-", "-").replace(",", "-").replace("−", "-")
     return text
 
 
