@@ -1,0 +1,31 @@
+  pass  test_all_checkable_pvalues_reproduce
+  pass  test_bootstrap_interval_brackets_the_point_estimate
+  pass  test_bootstrap_is_reproducible
+  pass  test_bootstrap_is_wider_than_the_point_estimate_suggests
+  pass  test_control_drift_shifts_effect_one_for_one
+  pass  test_cost_is_monotone_in_per_patient_cost
+  pass  test_enrichment_helps_little_when_strata_agree
+  pass  test_enrichment_hurts_for_ejection_fraction
+  pass  test_enrichment_removes_between_stratum_variance
+  pass  test_every_endpoint_has_a_source_table
+  pass  test_exact_solver_is_conservative_relative_to_normal
+  pass  test_exact_solver_matches_textbook
+  pass  test_full_enrichment_reproduces_the_late_stratum
+  pass  test_lvesv_pooled_effect_does_not_favour_treatment
+  pass  test_mixture_moments_against_pooled_samples
+  pass  test_mixture_reconstructs_published_totals
+  pass  test_no_endpoint_has_a_negative_sd
+  pass  test_normal_approximation_matches_textbook
+  pass  test_optimizer_rejects_designs_pointing_at_harm
+  pass  test_published_sd_matches_hand_calculation
+  pass  test_sample_size_decreases_monotonically_with_enrichment_for_lvesv
+  pass  test_screening_formula
+  pass  test_screening_penalty_grows_as_responders_thin
+  pass  test_sd_recovery_identity
+  pass  test_shrinkage_monotonically_increases_required_n
+  pass  test_solver_and_power_function_are_inverse
+  pass  test_solver_survives_extreme_inputs
+  pass  test_unselected_population_matches_published_pooled_values
+  pass  test_zero_effect_is_infeasible
+
+29/29 passed

@@ -1,0 +1,206 @@
+VentriGel Phase II enrichment analysis, v2.0.0
+Source trial: NCT02305602
+Traverse JH, Henry TD, Dib N, et al. First-in-Man Study of a Cardiac Extracellular Matrix Hydrogel in Early and Late Myocardial Infarction Patients. JACC Basic Transl Sci. 2019;4(6):659-669.
+
+==============================================================================
+[1/6]  Validating the transcription against the published tables
+==============================================================================
+  Recomputed 42 published paired t-test p-values from mean, SEM and n.
+  38/38 agree at the precision the source prints.
+  4 cells excluded for documented reasons:
+    scar: Unresolved discrepancy in the source. The printed 0.50 (1.9) with n = 12 gives p = 0.80, not the printed p = 0.58; reproducing 0.58 would require a SEM near 0.88. Recorded, not corrected. Scar fraction is not used in any headline result.
+    bnp: Online Table 8 reports BNP as percent change but its paired t-test column tests absolute BNP. The published p = 0.63 corresponds to the absolute change of +17.2 pg/mL with a paired SEM near 35 pg/mL, which is plausible on a 294.8 pg/mL baseline. The percent-change mean and SEM describe a different quantity, so they cannot reproduce it.
+    bnp: Same cause as the total-cohort BNP cell.
+
+  Reconstructing each total-cohort mean and SD from its two subgroups
+  (law of total expectation and law of total variance):
+    endpoint        mean rec  mean pub   SD rec   SD pub  SD err
+    six_min_walk       45.70     44.40    53.81    52.01    3.5%
+    lvesv              -0.36     -0.35    14.26    14.22    0.3%
+    lvedv              -4.86     -4.90    20.86    20.20    3.3%
+    ef                 -1.97     -1.30     4.14     4.49    7.8%
+    viable_mass         4.38      3.40    27.62    28.06    1.6%
+    scar                0.37      0.50     6.55     6.58    0.5%
+    mlwhfq             -7.20     -7.20    30.29    29.18    3.8%
+    nyha               -0.30     -0.30     0.79     0.75    6.1%
+    bnp               -12.50    -12.00    34.92    34.05    2.5%
+    median SD reconstruction error: 3.3%
+
+==============================================================================
+[2/6]  Subgroup separation in the published data
+==============================================================================
+  endpoint            early       late      total  separation  opposite
+  viable_mass        -10.50      15.00       3.40       25.50  yes
+  lvesv                9.30      -7.60      -0.35       16.90  yes
+  mlwhfq               0.70     -15.10      -7.20       15.80  yes
+  bnp                 -6.70     -18.30     -12.00       11.60  
+  six_min_walk        40.50      50.90      44.40       10.40  
+  lvedv               -1.20      -7.60      -4.90        6.40  
+  scar                 2.30      -1.00       0.50        3.30  yes
+  ef                  -3.80      -0.60      -1.30        3.20  
+  nyha                -0.30      -0.30      -0.30        0.00  
+
+  Where the two strata move in opposite directions, the total-cohort
+  mean is not a small effect. It is a cancellation.
+
+==============================================================================
+[3/6]  Sample size, unselected versus enriched
+==============================================================================
+  Two-arm parallel design, alpha=0.05, power=80%, 10% dropout, noncentral t.
+  Eligible-pool late fraction pi=0.533. No control drift and no
+  shrinkage applied here; both are imposed in step 5.
+
+  endpoint        eff unsel      N unsel  eff enr   N enrich      d     ratio
+  lvesv               -0.29       88,708     7.60         52   0.84    1,706x  <- wrong sign
+  six_min_walk        46.05           50    50.90         32   1.09        2x
+  viable_mass          3.10        2,942    15.00         42   0.96       70x
+  ef                  -2.09          138    -0.60      1,748  -0.14     worse  <- wrong sign
+  lvedv                4.61          730     7.60        208   0.41        4x
+  mlwhfq               7.73          540    15.10        138   0.51        4x
+
+  Effects are signed so that positive means benefit. Sample size depends
+  on the square of the effect, so a design whose effect points the wrong
+  way still returns a finite n; that n is the size needed to detect a
+  difference of that magnitude in either direction, not the cost of
+  demonstrating benefit. The flagged rows have no benefit to detect.
+
+  Enrichment is not uniformly good. It is decisive for LVESV and viable
+  mass, where the strata oppose; worth about a factor of two for the
+  6-min walk, where both strata improve; and counterproductive for
+  ejection fraction, whose pooled signal is produced entirely by the
+  early stratum worsening -- a safety signal enrichment would erase.
+
+==============================================================================
+[4/6]  Estimation uncertainty (parametric bootstrap)
+==============================================================================
+  Subgroup means and SDs come from 6-8 patients. Each draw samples a
+  plausible true mean and variance for both strata and re-solves the
+  design. Draws where the effect reverses sign are kept as infeasible.
+
+  endpoint           e   N median       80% interval  solvable
+  lvesv           0.53      2,501         308-66,091      46%
+  lvesv           1.00        108             34-635      98%
+  viable_mass     0.53      1,238         162-30,369      65%
+  viable_mass     1.00         80             26-428      98%
+  six_min_walk    0.53        114             46-440      99%
+  six_min_walk    1.00         64             24-296      98%
+
+  The solvable fraction is itself a result. For the enriched LVESV design
+  it states how often the late-subgroup effect keeps its sign once the
+  small sample it was measured in is taken seriously.
+
+==============================================================================
+[5/6]  Structural assumptions: control drift and winner's curse
+==============================================================================
+  The Phase I was single-arm, so control-arm drift is unmeasured. If
+  untreated early patients dilate on their own, part of the early-versus-
+  late gap is natural history rather than effect modification.
+
+  Enriched N for lvesv depends only on the late stratum, so it is
+  constant in the early-arm drift. What the drift changes is the
+  *unselected* comparator, and so the size of the advantage. Grid of
+  N_unselected / N_enriched, rows = early-arm drift (mL), columns =
+  late-arm drift (mL); 'none' means the unselected effect points at harm.
+             -4.0     -3.0     -2.0     -1.0      0.0      1.0      2.0      3.0      4.0
+     0.0     >1e4     >1e4     >1e4     >1e4     >1e4     928x     165x      77x      50x
+     1.0     >1e4     >1e4     >1e4     >1e4   1,065x     153x      69x      43x      32x
+     2.0     >1e4     >1e4     >1e4   1,373x     131x      60x      38x      28x      23x
+     3.0     >1e4     >1e4   2,090x     111x      48x      32x      24x      19x      17x
+     4.0     >1e4   2,525x      86x      38x      25x      20x      16x      14x      13x
+     5.0     >1e4      58x      26x      19x      15x      13x      12x      11x      10x
+     6.0      31x      16x      13x      11x      10x      10x       9x       9x       8x
+     7.0       7x       7x       7x       7x       7x       7x       7x       7x       7x
+     8.0       3x       4x       5x       5x       5x       6x       6x       6x       6x
+     9.0       2x       3x       3x       4x       4x       5x       5x       5x       5x
+    10.0       1x       2x       3x       3x       3x       4x       4x       4x       4x
+    11.0    worse       1x       2x       2x       3x       3x       3x       4x       4x
+    12.0    worse       1x       2x       2x       2x       3x       3x       3x       3x
+
+  Read the top-left corner as the hostile case: no early-arm drift means
+  the early stratum's +9.3 mL is entirely attributed to treatment, while
+  negative late-arm drift means untreated late patients would have improved
+  on their own. Even there the enriched design stays solvable; what
+  collapses is the claimed size of the advantage.
+
+  Winner's curse: the late subgroup was chosen post hoc in these same data.
+   shrinkage  effect (mL)   N enriched   N unselected
+        0.40         3.04          312     infeasible
+        0.45         3.42          248     infeasible
+        0.50         3.80          202     infeasible
+        0.55         4.18          166     infeasible
+        0.60         4.56          140     infeasible
+        0.65         4.94          120     infeasible
+        0.70         5.32          104     infeasible
+        0.75         5.70           92     infeasible
+        0.80         6.08           80     infeasible
+        0.85         6.46           72     infeasible
+        0.90         6.84           64     infeasible
+        0.95         7.22           58     infeasible
+        1.00         7.60           52     infeasible
+
+  Discounting the Phase I effect by 40% still leaves an enriched trial of
+  roughly 300 patients. The unselected column stays infeasible throughout,
+  because shrinking both strata proportionally shrinks the cancellation
+  too: the pooled effect keeps pointing very slightly the wrong way.
+
+==============================================================================
+[6/6]  Cost, and why maximal enrichment is not optimal
+==============================================================================
+  Unit costs (assumptions, not measurements): fixed $2,000,000; $65,000/patient; $2,500/screen; $12,000/site-month; 6 sites at 0.75/site/month
+
+  Screening cost rises as 1/pi for a fully enriched trial, so the cheapest
+  design generally sits below full enrichment.
+
+  lvesv:
+    unselected (e=0.53): pooled effect points toward harm (-0.29); no benefit to power for
+    cheapest   (e=1.00): N=52, screened=98, $7.7M, 31 months
+    full       (e=1.00): N=52, screened=98, $7.7M
+  viable_mass:
+    unselected (e=0.53): N=2,942, $240.9M
+    cheapest   (e=1.00): N=42, screened=79, $6.7M, 26 months
+    full       (e=1.00): N=42, screened=79, $6.7M
+
+  Whether an interior optimum exists depends on the sign of the effect in
+  the stratum being excluded, and the two candidate endpoints differ:
+    lvesv         excluded stratum has a NEGATIVE effect (+9.3 mL, i.e. harm)
+    six_min_walk  excluded stratum has a POSITIVE effect (+40.5 m, smaller)
+  Sweeping the eligible-pool composition makes the difference visible.
+
+    lvesv:
+        pi     e*       N   screened  months       cost
+      0.60   1.00      52         87      28 $      7.5M
+      0.45   1.00      52        116      35 $      8.0M
+      0.30   1.00      52        173      48 $      9.1M
+      0.20   1.00      52        260      67 $     10.7M
+      0.12   1.00      52        433     105 $     13.9M
+      0.08   1.00      52        650     153 $     17.9M  <- over 10 years
+      0.05   1.00      52      1,040     240 $     25.1M  <- over 10 years
+      0.03   1.00      52      1,733     394 $     38.0M  <- over 10 years
+
+    six_min_walk:
+        pi     e*       N   screened  months       cost
+      0.60   0.99      32         53      21 $      5.6M
+      0.45   1.00      32         71      25 $      6.0M
+      0.30   1.00      32        107      33 $      6.6M
+      0.20   1.00      32        160      45 $      7.6M
+      0.12   0.13      70         76      26 $      8.4M
+      0.08   0.08      74         74      25 $      8.6M
+      0.05   0.05      76         76      26 $      8.8M
+      0.03   0.03      76         76      26 $      8.8M
+
+  For LVESV the optimum never leaves full enrichment, because every early
+  patient admitted carries an effect of the wrong sign and strictly reduces
+  the pooled effect. The screening penalty still exists; it just appears as
+  duration rather than sample size, and duration is what actually kills the
+  design. At a 3% eligible-pool prevalence the enriched trial is still only
+  52 patients but takes over three decades to enroll at six sites.
+
+  For the 6-min walk, where excluded patients still improve, the optimum is
+  interior and moves off the boundary as responders get scarce. An analysis
+  that models enrolment but not screening would miss both behaviours and
+  conclude that tighter criteria are always better.
+
+==============================================================================
+Done
+==============================================================================
+  Results written to C:\Users\Rahul\Desktop\Ventrix\results

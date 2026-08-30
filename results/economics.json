@@ -1,0 +1,166 @@
+{
+  "lvesv": {
+    "e_optimal": 1.0,
+    "n_optimal": 52.0,
+    "cost_optimal": 7701750.0,
+    "cost_full": 7701750.0,
+    "cost_unselected": 7187996000.0,
+    "saving_fraction": 1.0,
+    "unselected_favors_treatment": false
+  },
+  "viable_mass": {
+    "e_optimal": 1.0,
+    "n_optimal": 42.0,
+    "cost_optimal": 6729875.0,
+    "cost_full": 6729875.0,
+    "cost_unselected": 240950000.0,
+    "saving_fraction": 0.9720694127412326,
+    "unselected_favors_treatment": true
+  },
+  "prevalence_optimum": [
+    {
+      "endpoint": "lvesv",
+      "pi": 0.6,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 86.66666666666667,
+      "duration_months": 28.25925925925926,
+      "total_cost": 7501333.333333334
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.45,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 115.55555555555556,
+      "duration_months": 34.67901234567901,
+      "total_cost": 8035777.777777778
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.3,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 173.33333333333334,
+      "duration_months": 47.51851851851852,
+      "total_cost": 9104666.666666666
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.2,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 260.0,
+      "duration_months": 66.77777777777777,
+      "total_cost": 10708000.0
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.12,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 433.33333333333337,
+      "duration_months": 105.2962962962963,
+      "total_cost": 13914666.666666668
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.08,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 650.0,
+      "duration_months": 153.44444444444446,
+      "total_cost": 17923000.0
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.05,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 1040.0,
+      "duration_months": 240.11111111111111,
+      "total_cost": 25138000.0
+    },
+    {
+      "endpoint": "lvesv",
+      "pi": 0.03,
+      "e_star": 1.0,
+      "n_total": 52.0,
+      "n_screened": 1733.3333333333335,
+      "duration_months": 394.1851851851852,
+      "total_cost": 37964666.66666667
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.6,
+      "e_star": 0.995,
+      "n_total": 32.0,
+      "n_screened": 53.06666666666667,
+      "duration_months": 20.79259259259259,
+      "total_cost": 5629733.333333333
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.45,
+      "e_star": 1.0,
+      "n_total": 32.0,
+      "n_screened": 71.11111111111111,
+      "duration_months": 24.80246913580247,
+      "total_cost": 5963555.555555556
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.3,
+      "e_star": 1.0,
+      "n_total": 32.0,
+      "n_screened": 106.66666666666667,
+      "duration_months": 32.70370370370371,
+      "total_cost": 6621333.333333334
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.2,
+      "e_star": 1.0,
+      "n_total": 32.0,
+      "n_screened": 160.0,
+      "duration_months": 44.55555555555556,
+      "total_cost": 7608000.0
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.12,
+      "e_star": 0.131,
+      "n_total": 70.0,
+      "n_screened": 76.41666666666667,
+      "duration_months": 25.98148148148148,
+      "total_cost": 8436708.333333334
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.08,
+      "e_star": 0.08,
+      "n_total": 74.0,
+      "n_screened": 74.0,
+      "duration_months": 25.444444444444443,
+      "total_cost": 8642000.0
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.05,
+      "e_star": 0.05,
+      "n_total": 76.0,
+      "n_screened": 76.0,
+      "duration_months": 25.88888888888889,
+      "total_cost": 8804000.0
+    },
+    {
+      "endpoint": "six_min_walk",
+      "pi": 0.03,
+      "e_star": 0.03,
+      "n_total": 76.0,
+      "n_screened": 76.0,
+      "duration_months": 25.88888888888889,
+      "total_cost": 8804000.0
+    }
+  ]
+}

@@ -1,0 +1,506 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{graphicx}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[margin=0.7in, columnsep=0.28in]{geometry}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage{abstract}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{url}
+
+\raggedbottom
+\tolerance=2000
+\emergencystretch=15pt
+
+\setlength{\textfloatsep}{10pt plus 1.0pt minus 2.0pt}
+\setlength{\intextsep}{10pt plus 1.0pt minus 2.0pt}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{11pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+
+\captionsetup{font=small, labelfont=bf}
+
+\title{\vspace{-2.0cm}\LARGE\textbf{Cancellation, Not Weakness: Sizing a Phase II Trial of a
+Cardiac Extracellular Matrix Hydrogel from Published Phase I Subgroup Data}}
+
+\author{
+    \large \textbf{Palash Rakshit} \\
+    \normalsize Independent Researcher, Redlands, California \\
+    \normalsize \href{mailto:palash.raks@gmail.com}{palash.raks@gmail.com} \\
+    \normalsize Code and data: \href{https://github.com/palashraks-afk/ventrigel-cds}{github.com/palashraks-afk/ventrigel-cds} \quad
+    Calculator: \href{https://ventrigelcds.streamlit.app/}{ventrigelcds.streamlit.app}
+}
+\date{}
+
+\begin{document}
+
+\twocolumn[
+  \begin{@twocolumnfalse}
+    \maketitle
+    \vspace{-1.1cm}
+    \begin{center}\large\textbf{Abstract}\end{center}
+    \noindent\normalsize
+    \textbf{Background.} The VentriGel first-in-man trial (NCT02305602) treated 15 post-infarction
+    patients with an injectable decellularized porcine myocardial matrix and reported that
+    improvements in left ventricular remodeling appeared mainly in patients treated more than
+    twelve months after infarction. Whether that observation is strong enough to shape a Phase II
+    design has not been quantified.
+    \textbf{Methods.} No simulated patients were used. The trial's Supplemental Appendix reports
+    every endpoint as mean with standard error and sample size, separately for the early
+    ($<$12 months) and late ($>$12 months) strata, which determines the standard deviation exactly
+    through $\mathrm{SD}=\mathrm{SEM}\sqrt{n}$. The transcription was validated two ways: by
+    recomputing all 38 checkable published paired $t$-test $p$-values from the transcribed
+    statistics, and by reconstructing each total-cohort mean and standard deviation from its two
+    subgroups using the laws of total expectation and total variance. A two-arm Phase II was then
+    sized as a function of enrollment enrichment, with the unmeasured control arm, the eligible-pool
+    composition, and a winner's-curse discount treated as explicit swept parameters.
+    \textbf{Results.} All 38 $p$-values reproduced; the median standard-deviation reconstruction
+    error was 3.3\% (0.3\% for end-systolic volume). For LV end-systolic volume the two strata move
+    in opposite directions, $+9.3$ mL early against $-7.6$ mL late, so the pooled $-0.35$ mL is a
+    cancellation rather than a weak effect. An unselected Phase II therefore has no benefit to
+    detect at any sample size, whereas an enriched trial requires 52 randomized patients at face
+    value, 92 after a 25\% effect discount, and a bootstrap median of 108 (80\% interval 34--635)
+    once the six to eight patients per stratum are taken seriously. Enrichment is not universally
+    useful: it is worth roughly twofold for six-minute walk distance, where both strata improve, and
+    is counterproductive for ejection fraction, whose pooled signal is produced entirely by the
+    early stratum deteriorating.
+    \textbf{Conclusions.} The value of enrichment is governed by the sign of the effect in the
+    stratum being excluded, not by the size of the pooled effect. Because the source trial was
+    single-arm, the early--late contrast cannot be separated from differential natural history;
+    under the most conservative attribution the enrichment advantage falls from unbounded to about
+    fourfold, while the enriched trial's size is largely unchanged. The robust conclusion is the
+    size of the enriched design, not the magnitude of its advantage.
+    \vspace{0.35cm}
+
+    \begin{center}\large\textbf{Disclosures}\end{center}
+    \noindent\small This is an independent secondary analysis of published summary statistics. It was
+    not conducted with, funded by, or endorsed by Ventrix, Inc., the Christman Laboratory, or any
+    trial investigator. No patient-level data were accessed. The author declares no competing
+    interests. All quantities analyzed here are drawn from the open-access publication cited as
+    reference~\cite{traverse2019} and its Supplemental Appendix.
+    \vspace{0.5cm}
+  \end{@twocolumnfalse}
+]
+
+\section{Introduction}
+
+A Phase I trial that establishes safety leaves a sponsor with a design question rather than an
+answer: how large must the next trial be? For cardiovascular regenerative therapies this question
+is often decisive. Phase II costs scale steeply with the number of patients~\cite{moore2018},
+success rates from Phase II onward are low across therapeutic areas~\cite{wong2019}, and sponsors of
+single-asset biotechnology companies frequently exhaust their capital between the two phases.
+
+Restricting enrollment to patients more likely to respond --- \emph{enrichment} --- is an
+established regulatory strategy for exactly this situation~\cite{fda2019, temple2010}. What is less
+often made explicit is that the size of the gain from enrichment varies enormously with the
+structure of the heterogeneity, and can be negative.
+
+The usual framing is that broad eligibility criteria ``dilute'' a treatment effect and force larger
+sample sizes. That framing is incomplete in a way that matters. Dilution assumes the patients being
+added contribute a smaller benefit. If instead they contribute a benefit of the \emph{opposite}
+sign, the pooled estimate is not attenuated toward a smaller positive number; it is driven toward
+zero, and can cross it. The two situations look identical in a summary table --- both produce a
+small pooled effect --- and they have completely different implications for design. In the first,
+a larger trial eventually succeeds. In the second, no trial of any size succeeds, because there is
+nothing left to detect.
+
+The VentriGel first-in-man trial supplies an unusually clean instance of the second
+case~\cite{traverse2019}. Fifteen patients with prior ST-segment elevation myocardial infarction and
+moderate left ventricular dysfunction received transendocardial injections of a hydrogel derived
+from decellularized porcine myocardial extracellular
+matrix~\cite{singelyn2009, seifnaraghi2013}. The trial was single-arm and explicitly not powered for
+efficacy; its stated purpose included informing which patients a later trial should
+enroll~\cite{traverse2019}. Post hoc, the investigators reported that improvements in left
+ventricular remodeling occurred mainly in patients treated more than twelve months post-infarction.
+
+This paper takes that finding and asks what it implies quantitatively for a Phase II design. The
+analysis is deliberately narrow. It does not attempt to predict whether an individual patient will
+respond, a claim fifteen single-arm patients cannot support and which is separately dubious on
+statistical grounds~\cite{senn2004}. It sizes trials, which is what the published data can bear.
+
+\subsection{Relation to a prior version of this work}
+
+An earlier version of this project, archived at
+\href{https://doi.org/10.5281/zenodo.21516443}{10.5281/zenodo.21516443}, took the opposite approach:
+it generated 2{,}000 synthetic patient records from a hand-written eligibility scoring rule, trained
+a classifier to predict the resulting label, and reported a test ROC-AUC of 1.00.
+
+That result was circular and the present paper supersedes it. The target variable in that design was
+a deterministic threshold function of the same features supplied to the classifier, so the model was
+recovering a conditional statement its author had written; near-perfect accuracy was the arithmetic
+consequence of the construction rather than evidence about biology. Reported feature importances
+likewise reproduced the penalty weights chosen by hand. The classifier code is retained in the
+repository under \texttt{deprecated/} so the comparison can be inspected. This correction is stated
+plainly here because the erroneous version carries a DOI and may be encountered independently.
+
+\section{Methods}
+
+\subsection{Recovering the variance structure}
+
+The trial's Supplemental Appendix reports each endpoint as a mean with its standard error and the
+contributing $n$, given separately for the total cohort and for the early ($<$12 months) and late
+($>$12 months) strata. Because $\mathrm{SEM}=\mathrm{SD}/\sqrt{n}$, the sample standard deviation
+follows exactly:
+\begin{equation}
+\mathrm{SD} = \mathrm{SEM}\sqrt{n}.
+\end{equation}
+This supplies everything a power calculation requires. No quantity in this study was digitized from
+a figure, imputed, or simulated. Nine endpoints were transcribed with their source table recorded
+alongside each value.
+
+\subsection{Validating the transcription}
+
+Two independent checks were applied before any of the recovered numbers were used.
+
+\textbf{Check 1: reproducing the published $p$-values.} The trial compared each follow-up visit
+against baseline with a paired Student's $t$-test. Given the mean and SEM of the paired change, the
+test statistic is $t=\text{mean}/\mathrm{SEM}$ on $n-1$ degrees of freedom. Recomputing every
+published $p$-value from the transcribed statistics simultaneously tests the transcription, the
+identity in Equation~1, and the stated test.
+
+\textbf{Check 2: reconstructing the pooled cohort.} The total cohort is the union of the two strata,
+so its moments must follow from theirs by the laws of total expectation and total variance:
+\begin{align}
+\mu &= \textstyle\sum_g w_g\,\mu_g,\\
+\sigma^2 &= \underbrace{\textstyle\sum_g w_g\,\sigma_g^2}_{\text{within}}
+          + \underbrace{\textstyle\sum_g w_g\,(\mu_g-\mu)^2}_{\text{between}} .
+\end{align}
+The published total-cohort values were never used as inputs, so agreement is a genuine test. It is a
+demanding one, because the between-stratum term is driven entirely by the subgroup separation that
+the rest of the analysis depends on.
+
+\subsection{Sizing the trial as a function of enrichment}
+
+Let $\pi$ denote the fraction of the \emph{eligible pool} belonging to the late stratum, and $e$ the
+fraction of \emph{enrolled} patients drawn from it. Setting $e=\pi$ describes an unselected trial and
+$e=1$ a fully enriched one. For a treatment-arm change $d_g$ and an assumed control-arm change $c_g$
+in stratum $g$, the estimand of a two-arm trial is
+\begin{equation}
+\Delta(e) = \textstyle\sum_g w_g(e)\,(d_g - c_g), \qquad w_{\text{late}}(e)=e,
+\end{equation}
+with the variance of the enrolled population given by Equation~3 evaluated at $w_g(e)$. Required
+sample size scales as $\sigma^2/\Delta^2$, so enrichment acts on both terms at once: it raises
+$|\Delta|$ by removing patients who dilute or oppose the effect, and lowers $\sigma$ by eliminating
+between-stratum heterogeneity. Per-arm sample size was solved against the noncentral $t$
+distribution rather than the normal approximation, because the enriched designs of interest are
+small enough for the difference to matter. All designs use $\alpha=0.05$ two-sided, 80\% power, and
+10\% dropout before the primary assessment; the Phase I lost one of fifteen patients to
+cardiac magnetic resonance follow-up.
+
+A design whose effect points away from benefit still returns a finite sample size, because $n$
+depends on $\Delta^2$. Such an $n$ is the size required to detect a difference of that magnitude in
+either direction, which is not the same as a trial capable of showing the therapy works. Every
+design reported below is flagged for the sign of its effect, and cost optimization is restricted to
+designs that favor treatment.
+
+\subsection{The screening penalty}
+
+Enrichment is not free. To randomize $N$ patients at enrichment level $e$ from a pool of composition
+$\pi$, the number who must be assessed for eligibility is
+\begin{equation}
+S = \max\!\left(\frac{eN}{\pi},\; \frac{(1-e)N}{1-\pi}\right),
+\end{equation}
+whichever stratum is exhausted first. A cost model separates per-screen from per-patient costs and
+derives enrollment duration from screening throughput, since screening is the rate limit in an
+enriched trial. Unit costs are stated as planning assumptions rather than measurements; sample-size
+ratios, which are the paper's primary claims, do not depend on them.
+
+\subsection{The assumptions that are swept rather than asserted}
+
+\textbf{The control arm.} This is the central limitation of the analysis and it is treated as a
+parameter throughout rather than as a closing caveat. The Phase I was single-arm: it reports what
+happened to treated patients, not what would have happened untreated. The early--late contrast is
+therefore consistent with two different stories. Under effect modification, the therapy genuinely
+works better late and the early stratum's adverse volume change reflects a real absence of benefit.
+Under differential natural history, untreated early patients continue to dilate over six months
+while untreated late patients are stable, so part of the observed gap is ordinary post-infarct
+remodeling. These are not distinguishable from single-arm data. Both stratum-specific control
+changes were therefore gridded over their full plausible ranges, including the maximally
+conservative case in which the entire early-stratum change is attributed to natural history.
+
+\textbf{The winner's curse.} The late stratum was identified post hoc in the same fifteen patients
+that produced its effect estimate, which guarantees upward bias: the subgroup was selected partly
+because its noise pointed favorably~\cite{ioannidis2008, wang2007, sun2010}. Headline results
+therefore apply a 25\% discount to the published stratum effects, and the discount is swept from 40\%
+to none.
+
+\textbf{Estimation uncertainty.} The stratum estimates rest on six to eight patients. A parametric
+bootstrap draws each stratum's true mean and variance from their sampling distributions,
+$\mu\sim\bar{x}+(s/\sqrt{n})\,t_{n-1}$ and $\sigma^2\sim(n-1)s^2/\chi^2_{n-1}$, and re-solves the
+entire design on each of 4{,}000 draws. Draws in which the effect reverses sign are retained as
+infeasible rather than discarded, since discarding them would bias the interval optimistically.
+
+Simulation appears in this study only in this subsection, and only to propagate uncertainty already
+present in the published estimates or to map the range of assumptions under which a conclusion
+holds. It is never used to create observations.
+
+\section{Results}
+
+\subsection{The transcription is faithful}
+
+All 38 checkable published $p$-values were reproduced from the transcribed mean, SEM and $n$ at the
+precision the source prints. Four cells were excluded for documented reasons rather than counted as
+failures. Three are B-type natriuretic peptide, whose table reports percent change but whose
+$t$-test column tests absolute values; the published $p=0.63$ corresponds to the absolute change of
+$+17.2$ pg/mL with a paired SEM near 35 pg/mL, which is consistent with a 294.8 pg/mL baseline. The
+fourth is total-cohort scar fraction, where the printed $0.50\,(1.9)$ at $n=12$ implies $p=0.80$
+rather than the printed $p=0.58$; this is an unresolved discrepancy in the source, recorded and not
+corrected, and scar fraction is not used in any headline result.
+
+Reconstructing each pooled cohort from its two strata gave a median standard-deviation error of
+3.3\%. For LV end-systolic volume the reconstruction returned a mean of $-0.36$ mL against a
+published $-0.35$ mL, and a standard deviation of 14.26 mL against a published 14.22 mL, an error of
+0.3\%. Since the published totals were never inputs, this agreement establishes that the recovered
+stratum variances are correct and, in particular, that the between-stratum separation is real
+arithmetic rather than an artifact of transcription.
+
+\subsection{The pooled effect is a cancellation}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/fig1_subgroup_cancellation.pdf}
+\caption{Six-month change from baseline by treatment timing. Bars are published means, whiskers
+published standard errors, signs flipped so that right is benefit. For end-systolic volume, viable
+mass and quality of life the strata move in opposite directions, so the pooled bar is the residue of
+two offsetting effects rather than a small common one.}
+\label{fig:cancel}
+\end{figure*}
+
+Figure~\ref{fig:cancel} shows the six-month changes. For LV end-systolic volume the early stratum
+worsened by $9.3$ mL while the late stratum improved by $7.6$ mL, giving a pooled change of
+$-0.35$ mL. The pooled figure is not a weak treatment effect. It is two effects of comparable
+magnitude and opposite sign averaging to approximately nothing. The same pattern holds for viable
+myocardial mass ($-10.5$ g early, $+15.0$ g late) and, less symmetrically, for the Minnesota Living
+with Heart Failure score. Ejection fraction shows the mirror image: the early stratum declined
+significantly ($-3.8$\%, $p=0.03$) while the late stratum did not ($-0.6$\%, $p=0.69$), so the
+pooled decline is produced entirely by one stratum.
+
+\subsection{Sample size under enrichment}
+
+\begin{table}[t]
+\centering
+\small
+\caption{Total randomized patients for a two-arm Phase II at $\alpha=0.05$, 80\% power, 10\%
+dropout, $\pi=0.53$, no control drift and no discount. Effects are signed so positive is benefit.}
+\label{tab:n}
+\begin{tabular}{lrrrr}
+\toprule
+Endpoint & $\Delta$ unsel. & $N$ unsel. & $\Delta$ enr. & $N$ enr. \\
+\midrule
+LVESV (mL)        & $-0.29$ & \emph{none} & $7.60$  & 52 \\
+Viable mass (g)   & $3.10$  & 2{,}942     & $15.00$ & 42 \\
+MLWHFQ (pts)      & $7.73$  & 540         & $15.10$ & 138 \\
+LVEDV (mL)        & $4.61$  & 730         & $7.60$  & 208 \\
+6-min walk (m)    & $46.05$ & 50          & $50.90$ & 32 \\
+Ejection fr.\ (\%)& $-2.09$ & \emph{none} & $-0.60$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:n} gives the central result. For end-systolic volume the unselected pooled effect
+points marginally toward harm, so no sample size demonstrates benefit; the enriched trial requires
+52 patients. Applying the 25\% winner's-curse discount raises this to 92, and the bootstrap median
+is 108 with an 80\% interval of 34 to 635, with 98\% of draws favoring treatment.
+
+Figure~\ref{fig:curves} decomposes why enrichment works so strongly here. Moving from $e=\pi$ to
+$e=1$ raises the effect from $-0.29$ to $+7.6$ mL while simultaneously lowering the standard
+deviation from 14.3 to 9.1 mL, because the between-stratum component of variance vanishes when only
+one stratum is enrolled. The two gains compound in the ratio $\sigma^2/\Delta^2$.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/fig2_enrichment_curves.pdf}
+\caption{Left: required sample size against enrichment level. Right: the mechanism for end-systolic
+volume --- enrichment raises the effect and lowers the standard deviation at the same time, because
+the between-stratum variance component is eliminated.}
+\label{fig:curves}
+\end{figure*}
+
+\subsection{Enrichment is not universally beneficial}
+
+The most useful result is the heterogeneity across endpoints. For six-minute walk distance both
+strata improve ($+40.5$ m early, $+50.9$ m late), so enrichment buys only a factor of about 1.6, and
+an unselected trial of 50 patients is already feasible. For ejection fraction, enrichment is
+actively counterproductive: the pooled signal exists only because the early stratum deteriorated, so
+restricting enrollment to late patients removes it. That signal is a possible safety observation
+rather than an efficacy one, which makes its removal a governance question and not merely a
+statistical inconvenience.
+
+The governing quantity is therefore the sign of the effect in the stratum being excluded, not the
+magnitude of the pooled effect. When excluded patients contribute a negative effect, full enrichment
+is always statistically optimal and the pooled estimate can be worthless at any $N$. When they
+contribute a positive but smaller effect, enrichment yields a modest gain and a genuine interior
+optimum appears once screening costs are counted.
+
+\subsection{Sensitivity to the missing control arm}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../results/figures/fig4_control_drift.pdf}
+\caption{Enrichment advantage across every combination of assumed control-arm drift, with a 25\%
+effect discount applied. The circled point is the maximally conservative attribution, in which the
+entire early-stratum volume change is natural history rather than absence of benefit.}
+\label{fig:drift}
+\end{figure}
+
+Figure~\ref{fig:drift} maps the advantage over the full space of control-arm assumptions. The
+enriched design's own size is unaffected by early-stratum drift, since it enrolls no early patients;
+what the assumption changes is the comparator, and therefore the size of the claimed advantage. At
+the maximally conservative point, where the early stratum's entire $+9.3$ mL is attributed to
+natural history, the unselected trial becomes solvable at 446 patients and the advantage falls from
+unbounded to roughly ninefold at face value, or about fourfold after the discount. The enriched
+trial remains near 52 patients throughout.
+
+This is the honest summary: the \emph{size of the enriched design} is robust, while the \emph{size
+of its advantage} is not, because the latter depends on a quantity the Phase I could not measure.
+
+Six-minute walk distance is more fragile still, and in the opposite direction. Its apparent
+feasibility rests on assuming no control-arm change, which is implausible for a test with known
+practice and placebo effects in heart failure populations. A control-arm improvement of 30 m raises
+the unselected requirement from 50 to 390 patients and the enriched requirement from 32 to 178. The
+endpoint that looks cheapest is the one most exposed to the missing control arm.
+
+\subsection{Uncertainty and economics}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../results/figures/fig6_design_summary.pdf}
+\caption{Required patients per candidate primary endpoint. Squares are unselected point estimates;
+right-pointing markers indicate endpoints with no pooled benefit to detect at any size. Circles and
+bars are enriched bootstrap medians with 80\% intervals, after a 25\% effect discount.}
+\label{fig:summary}
+\end{figure}
+
+Figure~\ref{fig:summary} combines the discount and the bootstrap into one view. Intervals are wide
+--- the enriched end-systolic volume design spans 34 to 635 patients --- which is the appropriate
+representation of what six to eight patients per stratum can support. Reporting 52 without that
+interval would overstate the precision available.
+
+Under the stated cost assumptions, the enriched end-systolic volume trial costs approximately
+\$7.7M at face value or \$11.6M after the discount, over 31 to 39 months. The screening multiplier
+at $\pi=0.53$ is only 1.9, so screening is not binding. It becomes binding as the eligible pool
+thins: at $\pi=0.03$ the trial is still 52 patients but requires 1{,}733 screens and over three
+decades of enrollment at six sites. Where responders are rare, calendar time constrains the design
+before sample size does, which an analysis modeling enrollment alone would miss.
+
+\section{Discussion}
+
+The practical recommendation that follows is specific. A Phase II of VentriGel powered on left
+ventricular end-systolic volume should restrict enrollment to patients more than twelve months
+post-infarction and plan for roughly 90 to 110 randomized patients, with the understanding that the
+upper end of the plausible range extends beyond 600. An unselected trial on the same endpoint should
+not be run at all, because the pooled estimate the Phase I supports is indistinguishable from zero
+and may point the wrong way. If instead a sponsor wants the cheapest possible signal-seeking trial,
+six-minute walk distance unselected at roughly 50 patients is the least expensive design in
+Table~\ref{tab:n} --- but that figure assumes a control arm with no improvement, and the estimate
+degrades faster than any other in the table once that assumption is relaxed.
+
+More generally, the analysis suggests that the common description of heterogeneity as ``dilution''
+obscures the decision that matters. Dilution implies a recoverable effect and a larger trial.
+Cancellation implies no recoverable effect and no viable trial. Distinguishing the two requires
+subgroup-level effect estimates, which are frequently published, and requires reading a small pooled
+mean as a question rather than as an answer.
+
+\subsection{Limitations}
+
+The single-arm design of the source trial is the dominant limitation and is the reason control drift
+is a swept parameter rather than a fixed assumption. Nothing in this analysis can establish that
+VentriGel works better in late patients; it establishes what follows for trial design \emph{if} the
+reported pattern is real.
+
+The late stratum was defined post hoc, and the fifteen-patient cohort supplies six to eight patients
+per stratum for the imaging endpoints. The discount and bootstrap address this but cannot eliminate
+it. Cardiac magnetic resonance follow-up was incomplete, so stratum $n$ differs across endpoints and
+weights were assigned by the $n$ actually contributing at each visit.
+
+The prevalence of late-stratum patients in a real eligible pool is unknown. The trial enrolled the
+two strata deliberately balanced, so its 8/15 split estimates its own design, not the population;
+this is why prevalence is swept rather than fixed. Unit costs are planning assumptions.
+
+Finally, statistical detectability is not clinical importance. A 7.6 mL reduction on a 142.3 mL
+baseline is a 5.3\% change, which is modest against the reverse-remodeling thresholds usually
+considered clinically meaningful. A trial powered for the effect estimated here would establish that
+the effect exists, not that it is worth having. Setting a clinically motivated target rather than
+the observed effect would increase every sample size in Table~\ref{tab:n}.
+
+\subsection{What would settle it}
+
+The analysis identifies exactly one measurement that would collapse most of the remaining
+uncertainty: the six-month change in end-systolic volume among untreated patients matched on time
+since infarction. That quantity is the horizontal axis of Figure~\ref{fig:drift}, and it is
+obtainable from existing observational cohorts with serial cardiac magnetic resonance without any
+new trial. Supplying it would convert the enrichment advantage from a range spanning an order of
+magnitude into a point estimate.
+
+\section{Reproducibility}
+
+All results are generated by \texttt{python run\_analysis.py} and \texttt{python make\_figures.py}
+in under a minute, with no arguments and no downloaded data. Published values are transcribed in
+\texttt{ventrigel/trial\_data.py} with the source table recorded for each. The validation of
+Section~3.1 runs on every execution, so a transcription error would surface as a failed check rather
+than as a silently wrong result.
+
+\begin{thebibliography}{9}
+\footnotesize
+
+\bibitem{traverse2019}
+Traverse JH, Henry TD, Dib N, Patel AN, Pepine C, Schaer GL, DeQuach JA, Kinsey AM, Chamberlin P,
+Christman KL. First-in-man study of a cardiac extracellular matrix hydrogel in early and late
+myocardial infarction patients. \textit{JACC Basic Transl Sci}. 2019;4(6):659--669.
+\url{https://doi.org/10.1016/j.jacbts.2019.07.012}
+
+\bibitem{singelyn2009}
+Singelyn JM, DeQuach JA, Seif-Naraghi SB, Littlefield RB, Schup-Magoffin PJ, Christman KL. Naturally
+derived myocardial matrix as an injectable scaffold for cardiac tissue engineering.
+\textit{Biomaterials}. 2009;30(29):5409--5416.
+
+\bibitem{seifnaraghi2013}
+Seif-Naraghi SB, Singelyn JM, Salvatore MA, et al. Safety and efficacy of an injectable extracellular
+matrix hydrogel for treating myocardial infarction. \textit{Sci Transl Med}. 2013;5(173):173ra25.
+
+\bibitem{fda2019}
+U.S. Food and Drug Administration. \textit{Enrichment Strategies for Clinical Trials to Support
+Determination of Effectiveness of Human Drugs and Biological Products: Guidance for Industry}.
+March 2019.
+
+\bibitem{temple2010}
+Temple R. Enrichment of clinical study populations. \textit{Clin Pharmacol Ther}.
+2010;88(6):774--778.
+
+\bibitem{ioannidis2008}
+Ioannidis JPA. Why most discovered true associations are inflated. \textit{Epidemiology}.
+2008;19(5):640--648.
+
+\bibitem{wang2007}
+Wang R, Lagakos SW, Ware JH, Hunter DJ, Drazen JM. Statistics in medicine --- reporting of subgroup
+analyses in clinical trials. \textit{N Engl J Med}. 2007;357(21):2189--2194.
+
+\bibitem{sun2010}
+Sun X, Briel M, Walter SD, Guyatt GH. Is a subgroup effect believable? Updating criteria to evaluate
+the credibility of subgroup analyses. \textit{BMJ}. 2010;340:c117.
+
+\bibitem{senn2004}
+Senn S. Individual response to treatment: is it a valid assumption? \textit{BMJ}.
+2004;329(7472):966--968.
+
+\bibitem{wong2019}
+Wong CH, Siah KW, Lo AW. Estimation of clinical trial success rates and related parameters.
+\textit{Biostatistics}. 2019;20(2):273--286.
+
+\bibitem{moore2018}
+Moore TJ, Zhang H, Anderson G, Alexander GC. Estimated costs of pivotal trials for novel therapeutic
+agents approved by the US Food and Drug Administration, 2015--2016. \textit{JAMA Intern Med}.
+2018;178(11):1451--1457.
+
+\end{thebibliography}
+
+\end{document}

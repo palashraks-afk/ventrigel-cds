@@ -1,13 +1,11 @@
-# Python caches
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Environments
 venv/
-env/
-.env
-
-# OS generated files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
 .DS_Store
-Thumbs.db
+.streamlit/secrets.toml
+
+# Source PDFs of the trial publication are not redistributed here.
+Ventri PDF/
+Supplemental Material/
+Supplemental Material.pdf
