@@ -1,0 +1,120 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1.1in]{geometry}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+
+\titleformat{\section}{\large\bfseries}{}{0pt}{}
+\titlespacing*{\section}{0pt}{14pt}{5pt}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries Correction Notice}\\[6pt]
+{\large Zenodo record \href{https://doi.org/10.5281/zenodo.21516443}{10.5281/zenodo.21516443}}\\[10pt]
+\textit{Computational Patient Selection for Extracellular Matrix Therapies:\\
+A Machine Learning Framework for Phase II Trial Optimization} (v1)\\[8pt]
+Palash Rakshit \quad$\cdot$\quad \href{mailto:palash.raks@gmail.com}{palash.raks@gmail.com}
+\end{center}
+
+\vspace{6pt}
+\hrule
+\vspace{10pt}
+
+\textbf{Status: superseded.} The headline result of version 1 is invalid. This notice explains why in
+enough detail that a reader can verify the diagnosis independently.
+
+\section{The claim that was wrong}
+
+Version 1 reported a Random Forest classifier achieving \textbf{ROC-AUC 1.00, accuracy 99.75\% and
+F1 99.83\%} on the task of identifying optimal candidates for VentriGel therapy, and presented this
+as evidence that machine learning could optimize Phase II patient selection.
+
+That performance was an artifact of the study's own construction and carries no information about
+patients, biology, or trial design.
+
+\section{Why it is invalid}
+
+The training data were 2{,}000 synthetic records produced by \texttt{synthetic\_generator.py}. For
+each record the script computed a \texttt{Suitability\_Score}, starting at 100 and deducting points
+for violating trial criteria (ejection fraction outside 25--45\%, time since infarction outside
+60--1095 days) and for soft risk factors, then thresholded that score at 60 to produce the binary
+label \texttt{Optimal\_Candidate}.
+
+\texttt{train\_model.py} then dropped \texttt{Suitability\_Score} and trained classifiers to predict
+\texttt{Optimal\_Candidate} from the remaining features.
+
+\textbf{The label is a deterministic function of those remaining features.} The classifier was not
+learning a relationship in data; it was recovering a conditional statement written a few dozen lines
+earlier in the same repository. Near-perfect accuracy was the arithmetic consequence of a tree
+ensemble recovering axis-aligned thresholds from noiseless labels. A materially lower score would
+have indicated a bug.
+
+The v1 manuscript described dropping \texttt{Suitability\_Score} as ``data leakage prevention.'' That
+removed the \emph{shortcut} but not the \emph{leakage}: the score is fully recoverable from the
+columns that remained, so the target stayed determined by the inputs.
+
+\section{Specific claims withdrawn}
+
+\begin{enumerate}[leftmargin=*, itemsep=5pt]
+  \item \textbf{The performance metrics.} ROC-AUC 1.00, accuracy 99.75\%, precision 100\%, recall
+  99.66\% and F1 99.83\% do not describe predictive ability. They describe the recoverability of a
+  rule from its own outputs.
+
+  \item \textbf{The feature importances.} ``Ejection fraction and days post-MI dominate over 80\% of
+  the classification decision space'' was not a finding. Those two variables carried the heaviest
+  hand-written penalties in the generator.
+
+  \item \textbf{The partial-dependence thresholds.} The reported probability cliff below 28\%
+  ejection fraction is the 25\% rule boundary plus tree granularity, not a biological transition. The
+  reported efficacy drop-off beyond 24 months post-MI corresponds to nothing in the generator at all
+  --- its rule window ran to 1{,}095 days (36 months). That figure should not have appeared.
+
+  \item \textbf{The hyperparameter search.} The manuscript described a \texttt{GridSearchCV} over
+  100--500 estimators and depths 5--20 ``converging at 300 estimators with a maximum depth of 12.''
+  The training script in the repository contains no grid search.
+
+  \item \textbf{The commercial estimate.} ``A 30 percent reduction in cohort size through optimized
+  screening can save upwards of \$10 million per trial phase'' was attributed to Moore et al. (2018)
+  and an FDA web page. Neither source supports that figure.
+\end{enumerate}
+
+\section{The underlying methodological error}
+
+Fifteen patients in a single-arm trial cannot support individual response prediction. Generating
+2{,}000 synthetic records does not add information; it adds rows. Whatever structure the generator
+was given is the only structure any model can find in its output. The error was not a coding mistake
+but a category mistake about what simulation can do.
+
+\section{What replaces it}
+
+Version 2 asks a question the published data can actually answer: given the subgroup effects the
+Phase I reported, how large must a Phase II be, how likely is it to succeed, and which assumption is
+that answer most sensitive to?
+
+It uses no synthetic patients. It also reaches a considerably more cautious conclusion: the subgroup
+finding that motivates the whole analysis is nominally significant for exactly one of nine endpoints
+($p = 0.034$) and survives no correction for multiplicity, and the analysis is presented as
+conditional on it throughout. Simulation survives only for propagating uncertainty already present in
+the published estimates.
+
+Code, data and manuscript: \url{https://github.com/palashraks-afk/ventrigel-cds}\\
+The v1 code is retained under \texttt{deprecated/} with a per-file post-mortem.
+
+\section{Acknowledgement}
+
+The error was mine. It was found by re-reading the generator and the training script together and
+noticing that the target variable was computed from the features, which is checkable in under a
+minute by anyone with the repository open. The v1 record is left online rather than deleted so the
+correction is discoverable by anyone who encounters it.
+
+\vspace{10pt}
+\hrule
+\vspace{6pt}
+\noindent\small Palash Rakshit, Redlands, California.
+
+\end{document}
