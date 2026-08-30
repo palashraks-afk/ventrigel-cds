@@ -137,12 +137,10 @@ def fig1_cancellation() -> None:
 def fig2_interaction() -> None:
     """The test nobody ran, with the multiplicity correction beside it."""
     tests = all_interaction_tests()
-    mult = {m.endpoint: m for m in multiplicity(tests)}
     fig, (ax, ax2) = plt.subplots(
-        1, 2, figsize=(9.8, 4.2), gridspec_kw={"width_ratios": [1.35, 1]}
+        1, 2, figsize=(9.8, 4.2), gridspec_kw={"width_ratios": [1.5, 1]}
     )
 
-    # Left: forest plot of the between-stratum difference, benefit-signed.
     y = np.arange(len(tests))[::-1]
     for i, t in zip(y, tests):
         sign = -1.0 if t.lower_is_better else 1.0
@@ -153,89 +151,109 @@ def fig2_interaction() -> None:
         # from zero reads directly as evidence.
         scale = (hi - lo) / (2 * 1.96) if hi > lo else 1.0
         c = LATE_C if t.nominally_significant else "#9AA5B1"
-        ax.plot([lo / scale, hi / scale], [i, i], color=c, lw=2.6, alpha=0.75, solid_capstyle="round")
+        ax.plot([lo / scale, hi / scale], [i, i], color=c, lw=2.6, alpha=0.75,
+                solid_capstyle="round")
         ax.plot([sign * t.difference / scale], [i], "o", color=c, ms=7)
-        ax.text(
-            0.985, i, f"p={t.p_value:.3f}", transform=ax.get_yaxis_transform(),
-            ha="right", va="center", fontsize=7,
-            color="#222" if t.nominally_significant else "#777",
-        )
+
     ax.axvline(0, color="#222", lw=1.0)
     ax.set_yticks(y)
-    ax.set_yticklabels([t.endpoint for t in tests], fontsize=8)
+    # Readable endpoint names, not the code identifiers used as dict keys.
+    ax.set_yticklabels([ENDPOINTS[t.endpoint].label for t in tests], fontsize=7.8)
     ax.set_xlabel("Standardized between-stratum difference $t$ (benefit positive)")
     ax.set_title(
         "Do the strata actually differ?\nWelch two-sample test on the change scores",
         fontsize=9,
     )
-    ax.set_xlim(-4.2, 4.6)
+    ax.set_xlim(-3.2, 3.2)
 
-    # Right: p-values against both correction thresholds.
+    # p-values in their own gutter to the right of the axes, so they cannot
+    # collide with the intervals they describe.
+    for i, t in zip(y, tests):
+        ax.annotate(
+            f"p = {t.p_value:.3f}", xy=(1.015, i), xycoords=("axes fraction", "data"),
+            va="center", ha="left", fontsize=7.2, annotation_clip=False,
+            color="#222" if t.nominally_significant else "#888",
+            fontweight="bold" if t.nominally_significant else "normal",
+        )
+
     ordered = sorted(tests, key=lambda t: t.p_value)
     ranks = np.arange(1, len(ordered) + 1)
     ps = np.array([t.p_value for t in ordered])
     m = len(ordered)
-    ax2.plot(ranks, ps, "o-", color=TOTAL_C, lw=1.4, ms=6, label="observed p")
+    ax2.plot(ranks, ps, "o-", color=TOTAL_C, lw=1.4, ms=6, label="observed $p$")
     ax2.plot(ranks, 0.05 * ranks / m, "--", color=GOOD_C, lw=1.6, label="Benjamini-Hochberg")
     ax2.axhline(0.05 / m, color=EARLY_C, ls=":", lw=1.6, label=f"Bonferroni (0.05/{m})")
     ax2.axhline(0.05, color="#BBB", lw=1.0)
-    ax2.text(m * 0.98, 0.052, "nominal 0.05", fontsize=6.8, color="#888", ha="right")
+    ax2.text(m * 0.97, 0.058, "nominal 0.05", fontsize=6.8, color="#888", ha="right")
+    # The observed-p curve rises left to right, so the free space is the lower
+    # right. Annotation goes there and the legend goes upper left, which keeps
+    # both clear of the curve and of the two threshold lines.
     ax2.annotate(
-        f"LVESV p={ps[0]:.3f}\nabove both thresholds",
-        xy=(1, ps[0]), xytext=(2.1, 0.006), fontsize=7, color=ACCENT,
-        arrowprops={"arrowstyle": "->", "color": ACCENT, "lw": 1.0},
+        f"LVESV, $p$ = {ps[0]:.3f}\nabove both thresholds",
+        xy=(1, ps[0]), xytext=(4.3, 0.0155), fontsize=7.2, color=ACCENT,
+        ha="left", va="center",
+        arrowprops={"arrowstyle": "->", "color": ACCENT, "lw": 1.0,
+                    "connectionstyle": "arc3,rad=0.22"},
     )
     ax2.set_yscale("log")
-    ax2.set_xlabel("Rank of endpoint by p-value")
-    ax2.set_ylabel("p")
+    ax2.set_ylim(4.0e-3, 2.2)
+    ax2.set_xlim(0.4, 9.6)
+    ax2.set_xlabel("Rank of endpoint by $p$-value")
+    ax2.set_ylabel("$p$")
     ax2.set_title("No endpoint survives multiplicity correction", fontsize=9)
     ax2.legend(fontsize=7, frameon=False, loc="upper left")
 
+    fig.subplots_adjust(wspace=0.55)
     fig.tight_layout()
     save(fig, "fig2_interaction_and_multiplicity")
 
 
 def fig3_literature_anchors() -> None:
     """External control arms: what untreated patients do."""
-    fig, ax = plt.subplots(figsize=(8.2, 4.2))
-    order = ["preservation_i", "time", "empress_mi", "focus_cctrn", "focus_hf"]  # LV volume anchors only
+    order = ["preservation_i", "time", "empress_mi", "focus_cctrn", "focus_hf"]
+    fig, ax = plt.subplots(figsize=(9.4, 3.6))
     y = np.arange(len(order))[::-1]
 
     for i, key in zip(y, order):
-        a = ANCHORS[key]
-        c = EARLY_C if a.phase == "acute" else LATE_C
-        val = a.absolute_change()
-        sd = a.absolute_sd()
+        a_ = ANCHORS[key]
+        c = EARLY_C if a_.phase == "acute" else LATE_C
+        val = a_.absolute_change()
+        sd = a_.absolute_sd()
         if sd is not None:
-            se = sd / math.sqrt(a.n)
-            ax.plot([val - 1.96 * se, val + 1.96 * se], [i, i], color=c, lw=2.6, alpha=0.5)
-        ax.plot([val], [i], "o", color=c, ms=9)
-        ax.text(
-            val, i + 0.30, f"{a.trial} ({a.year}), n={a.n}", fontsize=7.5,
-            ha="center", color="#333",
-        )
-        ax.text(
-            val, i - 0.34, a.measure, fontsize=6.6, ha="center", color="#888",
-        )
+            se = sd / math.sqrt(a_.n)
+            ax.plot([val - 1.96 * se, val + 1.96 * se], [i, i], color=c, lw=3.0,
+                    alpha=0.45, solid_capstyle="round")
+        ax.plot([val], [i], "o", color=c, ms=9, zorder=3)
 
     ax.axvline(0, color="#222", lw=1.0)
-    # VentriGel's own observed changes, for direct comparison.
-    ax.axvline(9.3, color=EARLY_C, ls="--", lw=1.4, alpha=0.85)
-    ax.axvline(-7.6, color=LATE_C, ls="--", lw=1.4, alpha=0.85)
-    ax.text(9.5, len(order) - 0.55, "VentriGel\nearly (+9.3)", fontsize=7, color=EARLY_C)
-    ax.text(-7.4, len(order) - 0.55, "VentriGel\nlate (-7.6)", fontsize=7, color=LATE_C, ha="right")
+    # VentriGel's own stratum changes, for direct comparison. Labels go at the
+    # top of the axes rather than beside the lines, where they used to collide
+    # with the trial annotations.
+    for x, c, lab in ((9.3, EARLY_C, "VentriGel early +9.3"),
+                      (-7.6, LATE_C, "VentriGel late -7.6")):
+        ax.axvline(x, color=c, ls="--", lw=1.3, alpha=0.85)
+        ax.annotate(lab, xy=(x, 1.02), xycoords=("data", "axes fraction"),
+                    ha="center", va="bottom", fontsize=7, color=c,
+                    annotation_clip=False)
 
+    # The y axis carries the trial identity. Previously it repeated the phase,
+    # which conveyed nothing, and the trial names were floating annotations
+    # that overlapped each other and the reference lines.
     ax.set_yticks(y)
     ax.set_yticklabels(
-        [f"{ANCHORS[k].phase}" for k in order], fontsize=8
+        [f"{ANCHORS[k].trial} ({ANCHORS[k].year})\n{ANCHORS[k].measure}, n={ANCHORS[k].n}"
+         for k in order],
+        fontsize=7.4,
     )
-    ax.set_xlabel("Six-month change in LV volume, control or placebo arm (mL, BSA 1.9 m$^2$)")
+    ax.set_xlabel("Six-month change in LV volume, control or placebo arm "
+                  "(mL, BSA 1.9 m$^2$)")
     ax.set_title(
         "What happens to untreated patients\n"
-        "Acute cohorts disagree in sign; chronic cohorts are stable",
-        fontsize=9.5,
+        "Acute cohorts (red) disagree in sign; chronic cohorts (blue) are stable",
+        fontsize=9.5, pad=22,
     )
-    ax.set_ylim(-0.8, len(order) - 0.2)
+    ax.set_ylim(-0.7, len(order) - 0.3)
+    ax.margins(x=0.06)
     fig.tight_layout()
     save(fig, "fig3_literature_anchors")
 
@@ -358,7 +376,7 @@ def fig6_control_drift() -> None:
     plot = np.where(np.isinf(adv), 1e4, adv)
     plot = np.clip(plot, 1.0, 1e4)
 
-    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    fig, ax = plt.subplots(figsize=(9.4, 4.4))
     im = ax.imshow(
         plot.T, origin="lower", aspect="auto", cmap="BuPu", norm=LogNorm(vmin=1, vmax=1e4),
         extent=(
@@ -408,8 +426,9 @@ def fig6_control_drift() -> None:
     )
     ax.grid(False)
     cb = fig.colorbar(im, ax=ax, label="unselected N / enriched N", extend="max")
-    cb.ax.text(0.5, 1.11, "no pooled benefit", transform=cb.ax.transAxes,
-               ha="center", fontsize=6.5, color="#444")
+    # The top of the scale means the unselected trial has no benefit to detect
+    # at any size. That is explained in the caption rather than as a floating
+    # label above the colorbar, where it read as disconnected from the bar.
     fig.tight_layout()
     save(fig, "fig6_control_drift")
 

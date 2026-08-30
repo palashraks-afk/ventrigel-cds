@@ -98,8 +98,8 @@ st.markdown(
 
 st.title("VentriGel Phase II trial design calculator")
 st.caption(
-    f"Built from published summary statistics of {TRIAL_ID} plus control arms of "
-    "eight other published sources. No synthetic patients, no patient-level prediction."
+    f"Built from published summary statistics of {TRIAL_ID} plus eight control-arm "
+    "estimates drawn from six published sources. No synthetic patients, no patient-level prediction."
 )
 
 _ev = assess_evidence()

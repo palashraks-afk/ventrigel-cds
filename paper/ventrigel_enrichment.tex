@@ -80,8 +80,9 @@ Hydrogel}}
     deviation exactly through $\mathrm{SD}=\mathrm{SEM}\sqrt{n}$. Transcription was validated by
     recomputing all 38 checkable published $p$-values and by reconstructing each pooled moment from
     its strata. The between-stratum interaction, which the trial did not test, was evaluated and
-    corrected for multiplicity. The missing control arm was anchored to eight published control and
-    placebo arms, and those anchors' own standard errors were propagated rather than ignored.
+    corrected for multiplicity. The missing control arm was anchored to eight control-arm
+    estimates drawn from six published sources, and those anchors' own standard errors were
+    propagated rather than ignored.
     Results are reported as assurance, meaning power integrated over effect and comparator
     uncertainty, and then multiplied by the probability that the subgroup effect is real at all.
     \textbf{Results.} All 38 $p$-values reproduced; median SD reconstruction error 3.3\% (0.3\% for
@@ -446,13 +447,16 @@ anchor is exactly zero at every value in the plausible range, but it moves the s
 % Discussion onto float pages beside the bibliography. Declaring them a section
 % or two early gives LaTeX pages to place them on; the caption numbering still
 % follows the order of declaration, which matches the order of citation.
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{../results/figures/fig6_control_drift.pdf}
-\caption{Enrichment advantage across the comparator assumption space. Below the white line the
-enriched design fails outright, because assumed natural history exceeds the treatment effect.}
+\includegraphics[width=\textwidth]{../results/figures/fig6_control_drift.pdf}
+\caption{Enrichment advantage across the comparator assumption space, as the ratio of unselected to
+enriched enrollment. The top of the colour scale means the unselected trial has no benefit to detect
+at any size. Below the white line the enriched design fails outright, because assumed natural history
+exceeds the treatment effect. The dashed box spans the range of the published control arms and the
+star marks the anchored central case.}
 \label{fig:drift}
-\end{figure}
+\end{figure*}
 
 \subsection{Power, probability of success, and the prior}
 

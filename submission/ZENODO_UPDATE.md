@@ -66,7 +66,8 @@ correction is only meaningful if the thing being corrected remains visible.
 > exactly. Transcription was validated by recomputing all 38 checkable published p-values and by
 > reconstructing each pooled moment from its strata. The between-stratum interaction, which the
 > trial did not test, was evaluated and corrected for multiplicity. The missing control arm was
-> anchored to eight published control and placebo arms, and those anchors' own standard errors were
+> anchored to eight control-arm estimates drawn from six published sources, and those anchors' own
+> standard errors were
 > propagated. Results are reported as assurance, meaning power integrated over effect and comparator
 > uncertainty, and then multiplied by the probability that the subgroup effect is real at all.
 >

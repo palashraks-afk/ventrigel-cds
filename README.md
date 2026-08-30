@@ -5,7 +5,7 @@ how likely is it to succeed, and which assumption is that answer most sensitive 
 
 Everything is derived from published summary statistics: the VentriGel first-in-man trial
 ([NCT02305602](https://clinicaltrials.gov/study/NCT02305602), Traverse et al., *JACC Basic Transl
-Sci* 2019) plus eight published control and placebo arms.
+Sci* 2019) plus eight control-arm estimates drawn from six published sources.
 **No synthetic patients. No patient-level prediction.**
 
 **Live calculator:** <https://ventrigelcds.streamlit.app/>
