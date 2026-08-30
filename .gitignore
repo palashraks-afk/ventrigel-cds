@@ -4,8 +4,3 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 .streamlit/secrets.toml
-
-# Source PDFs of the trial publication are not redistributed here.
-Ventri PDF/
-Supplemental Material/
-Supplemental Material.pdf
