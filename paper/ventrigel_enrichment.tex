@@ -195,8 +195,8 @@ opposite sides of $p=0.05$ without differing from each other, and this is among 
 errors in subgroup reporting~\cite{wang2007, sun2010}. The between-stratum difference was therefore
 tested directly with Welch's unequal-variance $t$-test on the change scores.
 
-Two limitations of that test are stated here rather than discovered by a reader. It compares change
-scores rather than adjusting for baseline by analysis of covariance; with balanced baselines ANCOVA
+The test has two limitations, both of which belong here and not in a reader's notes. It compares
+change scores instead of adjusting for baseline by analysis of covariance; with balanced baselines ANCOVA
 is the standard and more powerful choice, so the reported $p$ is probably conservative, but ANCOVA
 requires patient-level data. And the multiplicity family is nine endpoints at the six-month visit;
 the trial also reported one- and three-month visits, and counting those would enlarge the family and
@@ -206,7 +206,7 @@ timepoint.
 Both Bonferroni and Benjamini--Hochberg~\cite{benjamini1995} corrections were applied. A reduced
 denominator is also reported, since ejection fraction is algebraically determined by the two volumes
 and viable mass and scar fraction partition the same myocardium; it is presented alongside the
-nominal count rather than instead of it, because choosing the smaller denominator after seeing the
+nominal count, not in place of it, because choosing the smaller denominator after seeing the
 $p$-values would itself be a form of selection.
 
 Baseline balance was tested on every reported baseline, since the strata were not randomized against
@@ -225,8 +225,8 @@ placebo arms~\cite{khan2022}. Indexed volumes were converted at a body surface a
 1.9\,m$^2$, a choice checkable because it implies a VentriGel baseline index of 78.2\,mL/m$^2$
 against 65.0\,mL/m$^2$ in the chronic FOCUS-CCTRN population.
 
-Where two anchors cover the same cell the choice is recorded explicitly with its reason rather than
-made by an automatic rule. This matters: selecting by sample size would have chosen EMPRESS-MI over
+Where two anchors cover the same cell the choice is recorded explicitly, with its reason, instead of
+being left to an automatic rule. This matters: selecting by sample size would have chosen EMPRESS-MI over
 TIME for the early stratum and thereby reversed the comparator's sign.
 
 Crucially, an anchor is an estimate. FOCUS-CCTRN's zero comes from 28 patients. Its standard error is
@@ -259,7 +259,7 @@ A design whose effect points away from benefit still returns a finite $n$, becau
 $\Delta^2$. Every design is flagged for the sign of its effect, and cost optimization is restricted
 to designs favouring treatment.
 
-\subsection{Probability of success rather than power}
+\subsection{Probability of success, not power}
 
 Assurance~\cite{ohagan2005} integrates power over the uncertainty in the effect,
 \begin{equation}
@@ -276,8 +276,8 @@ substantial work here, the unconditional probability
 P(\text{success}) = P(\text{effect real}) \times A(n)
 \end{equation}
 is reported across a range of priors. No attempt is made to derive the prior; it is a judgement, it
-is the most consequential single number in the analysis, and the honest treatment is to make it
-explicit and show its consequence.
+is the most consequential single number in the analysis, and the only defensible treatment is to
+make it explicit and show its consequence.
 
 \subsection{Confirming the claim, not only the effect}
 
@@ -336,8 +336,8 @@ Two checks favour the finding. The strata are balanced on all eight reported bas
 regression to the mean: the early stratum began with the \emph{higher} end-systolic volume and got
 worse.
 
-The honest reading is that this is a suggestive but fragile signal. It is adequate to justify
-designing a trial around, and not adequate to assert. Everything below is conditional on it, and Section~3.7 prices that condition.
+This is a suggestive but fragile signal. It is adequate to justify designing a trial around, and not
+adequate to assert. Everything below is conditional on it, and Section~3.7 prices that condition.
 
 \subsection{What untreated patients do}
 
