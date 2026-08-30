@@ -20,3 +20,5 @@ paper/*.synctex.gz
 submission/*.aux
 submission/*.log
 submission/*.out
+
+submission/*.zip
