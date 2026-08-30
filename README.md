@@ -8,6 +8,8 @@ Everything is derived from published summary statistics: the VentriGel first-in-
 Sci* 2019) plus eight published control and placebo arms.
 **No synthetic patients. No patient-level prediction.**
 
+**Live calculator:** <https://ventrigelcds.streamlit.app/>
+
 ```bash
 pip install -r requirements.txt
 python run_analysis.py      # every number in the paper, ~1 min
