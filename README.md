@@ -86,6 +86,16 @@ VentriGel's late-stratum −0.6 is a small **benefit**, not the null the trial r
 Where two anchors compete the choice is **explicit and documented**, not automatic — selecting by
 sample size would have picked EMPRESS-MI over TIME and reversed the early comparator's sign.
 
+The comparators actually fed to the model, after de-indexing at BSA 1.9 m²:
+
+| endpoint | early stratum | late stratum |
+|---|---|---|
+| LVESV | **+8.2 mL** (TIME) | **+0.0 mL** (FOCUS-CCTRN) |
+| LVEDV | +22.2 mL (PRESERVATION-I) | *none* |
+| ejection fraction | +8.5 pts (EMPRESS-MI) | −1.3 pts (FOCUS-CCTRN) |
+| 6-min walk | *none* | +17.6 m (Khan) |
+| viable mass, MLWHFQ | *none* | *none* |
+
 ---
 
 ## The comparator is an estimate, and that roughly doubles the trial

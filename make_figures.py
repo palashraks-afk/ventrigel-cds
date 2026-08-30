@@ -87,7 +87,7 @@ def _controls_for(key: str) -> tuple[float, float]:
 def fig1_cancellation() -> None:
     """Six-month change by stratum: where the pooled effect comes from."""
     keys = ["lvesv", "viable_mass", "mlwhfq", "six_min_walk", "lvedv", "ef"]
-    fig, axes = plt.subplots(2, 3, figsize=(9.5, 5.0))
+    fig, axes = plt.subplots(2, 3, figsize=(9.5, 5.4))
 
     for ax, key in zip(axes.ravel(), keys):
         ep = ENDPOINTS[key]
@@ -105,15 +105,25 @@ def fig1_cancellation() -> None:
         ax.set_yticklabels(
             [f"early (n={t['early'].n})", f"late (n={t['late'].n})", f"pooled (n={t['total'].n})"]
         )
-        ax.set_title(f"{ep.label}  ({ep.unit}, benefit positive)", fontsize=8.5, pad=14)
+        # Two lines, and the long Minnesota name abbreviated. At the width this
+        # figure occupies in the two-column manuscript, single-line titles for
+        # the wider endpoints run into their neighbours.
+        short = {
+            "Minnesota Living with Heart Failure score": "MLWHFQ score",
+            "6-minute walk distance": "6-min walk distance",
+        }.get(ep.label, ep.label)
+        ax.set_title(f"{short}\n({ep.unit}, benefit positive)", fontsize=8.0, pad=13)
         ax.tick_params(labelsize=7.5)
         ax.margins(x=0.12)
 
         a, b = t["early"].mean, t["late"].mean
         if a * b < 0 and min(abs(a), abs(b)) > 0.10 * max(abs(a), abs(b)):
+            # Inside the axes, not above it: the two-line titles leave no room
+            # overhead, and the lower-right corner is empty in every panel
+            # because the pooled bar is the shortest.
             ax.text(
-                0.5, 1.02, "strata oppose", transform=ax.transAxes, ha="center",
-                fontsize=7, style="italic", color=ACCENT,
+                0.97, 0.05, "strata oppose", transform=ax.transAxes,
+                ha="right", va="bottom", fontsize=6.8, style="italic", color=ACCENT,
             )
 
     fig.suptitle(

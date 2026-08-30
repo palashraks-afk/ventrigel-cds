@@ -1,6 +1,11 @@
 \documentclass[10pt,twocolumn,letterpaper]{article}
 
 \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+% Latin Modern is a scalable rebuild of Computer Modern. microtype's font
+% expansion below is a fatal error against the default bitmap fonts, so this
+% must be loaded before it.
+\usepackage{lmodern}
 \usepackage[english]{babel}
 \usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
@@ -319,14 +324,14 @@ not adequate to assert. Everything below is conditional on it, and Section~3.7 p
 
 \subsection{What untreated patients do}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{../results/figures/fig3_literature_anchors.pdf}
+\includegraphics[width=\textwidth]{../results/figures/fig3_literature_anchors.pdf}
 \caption{Control and placebo arms of five randomized trials for LV volumes, converted to absolute
 units. Acute cohorts disagree in sign; chronic cohorts are stable. Dashed lines mark VentriGel's own
 observed stratum changes.}
 \label{fig:anchors}
-\end{figure}
+\end{figure*}
 
 Figure~\ref{fig:anchors} replaces the missing comparator with measurements, and the result is more
 interesting than a single number. For \emph{acute} patients the anchors disagree in sign: TIME
@@ -453,7 +458,7 @@ money on the comparator rather than on patients.
 
 An enriched trial cannot establish that timing matters. Powering the interaction instead requires 124
 patients against no assumed drift, but only 440 against anchored comparators, because anchoring
-halves the interaction contrast from 12.7 to 6.6\,mL: most of the early stratum's apparent harm is
+halves the interaction contrast from 12.7 to 6.5\,mL: most of the early stratum's apparent harm is
 natural history rather than a failure of treatment.
 
 That 440 is close to the 406 an 80\%-assurance enriched trial needs. For approximately the same
@@ -469,13 +474,13 @@ enriched design fails outright, because assumed natural history exceeds the trea
 \label{fig:drift}
 \end{figure}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{../results/figures/fig7_bootstrap.pdf}
+\includegraphics[width=\textwidth]{../results/figures/fig7_bootstrap.pdf}
 \caption{Bootstrap distributions of required enrollment. Intervals are wide because six to eight
 patients per stratum cannot pin a sample size precisely.}
 \label{fig:boot}
-\end{figure}
+\end{figure*}
 
 \begin{figure}[t]
 \centering
@@ -495,13 +500,13 @@ Under the stated cost assumptions the 406-patient recommended design requires 76
 approximately \$42M, and needs 38 sites to complete in 36 months against the six that ran the Phase I.
 Figure~\ref{fig:econ} shows the screening penalty binding as responders thin.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{../results/figures/fig8_economics.pdf}
+\includegraphics[width=\textwidth]{../results/figures/fig8_economics.pdf}
 \caption{Cost of the cheapest viable design as responders become scarcer, and the enrichment level at
 which full enrichment stops paying.}
 \label{fig:econ}
-\end{figure}
+\end{figure*}
 
 \section{Discussion}
 

@@ -52,7 +52,21 @@ def main() -> int:
     checks: list[tuple[str, bool, str]] = []
 
     def claim(label: str, needle: str, where: str = "both") -> None:
-        hay = {"paper": paper, "readme": readme, "both": both}[where]
+        """Record one claim.
+
+        ``where="both"`` means the value must appear in *each* document, not in
+        their concatenation. An earlier version searched the concatenated text,
+        which let a corrected number in the README mask a stale one still in the
+        paper -- the exact failure this checker exists to prevent, and it passed
+        24/24 while the manuscript said 6.6 where the code said 6.5.
+        """
+        if where == "both":
+            missing = [n for n, t in (("paper", paper), ("README", readme)) if needle not in t]
+            ok = not missing
+            note = needle if ok else f"{needle!r} (missing from: {', '.join(missing)})"
+            checks.append((label, ok, note))
+            return
+        hay = {"paper": paper, "readme": readme}[where]
         checks.append((label, needle in hay, needle))
 
     # -- validation ---------------------------------------------------------
@@ -110,7 +124,7 @@ def main() -> int:
     for label, ok, needle in checks:
         if not ok:
             failed += 1
-        print(f"  {'OK  ' if ok else 'FAIL'}  {label:<{width}} expected to find: {needle!r}")
+        print(f"  {'OK  ' if ok else 'FAIL'}  {label:<{width}} {needle if not ok else repr(needle)}")
 
     print(f"\n{len(checks) - failed}/{len(checks)} claims verified")
     if failed:
