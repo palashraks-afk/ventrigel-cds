@@ -40,6 +40,9 @@ jobs:
       - name: Regenerate every figure
         run: python make_figures.py
 
+      - name: Check the manuscript's numbers against the analysis output
+        run: python check_manuscript.py
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4

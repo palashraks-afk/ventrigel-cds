@@ -169,7 +169,7 @@ A 2×2 design powered on the interaction:
 | control assumption | interaction contrast | N (2×2) | vs. enriched 2-arm |
 |---|---|---|---|
 | no control drift | 12.7 mL | 124 | 1.3× |
-| **published control arms** | **6.6 mL** | **440** | 4.8× |
+| **published control arms** | **6.5 mL** | **440** | 4.8× |
 
 Anchoring halves the contrast, because most of the early stratum's apparent harm is natural history
 rather than a failure of treatment. But **440 is close to the 406 an 80%-assurance enriched trial
@@ -230,6 +230,7 @@ ventrigel/
 run_analysis.py    reproduces every number (10 sections)
 make_figures.py    reproduces all eleven figures
 test_ventrigel.py  75 tests; power math checked against textbook values
+check_manuscript.py verifies every number quoted in the paper against results/
 app.py             Streamlit design calculator
 paper/             manuscript source
 deprecated/        the retired v1 classifier, with a written post-mortem
