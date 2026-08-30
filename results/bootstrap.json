@@ -1,9 +1,9 @@
 {
   "lvesv_e0.53": {
-    "median": 2501.0,
-    "q10": 308.20000000000005,
-    "q90": 66091.00000000004,
-    "feasible_fraction": 0.458
+    "median": 896.0,
+    "q10": 172.80000000000007,
+    "q90": 16647.999999999993,
+    "feasible_fraction": 0.83125
   },
   "lvesv_e1.00": {
     "median": 108.0,
@@ -12,9 +12,9 @@
     "feasible_fraction": 0.9765
   },
   "viable_mass_e0.53": {
-    "median": 1238.0,
-    "q10": 162.0,
-    "q90": 30369.0,
+    "median": 1337.0,
+    "q10": 164.0,
+    "q90": 32913.0,
     "feasible_fraction": 0.6515
   },
   "viable_mass_e1.00": {
@@ -24,9 +24,9 @@
     "feasible_fraction": 0.97825
   },
   "six_min_walk_e0.53": {
-    "median": 114.0,
-    "q10": 46.0,
-    "q90": 439.8000000000002,
+    "median": 119.0,
+    "q10": 48.0,
+    "q90": 452.0,
     "feasible_fraction": 0.993
   },
   "six_min_walk_e1.00": {

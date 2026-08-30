@@ -120,8 +120,8 @@ def bootstrap_designs(
         mu_e, sd_e = _draw_stratum(eff["early"]["mean"], eff["early"]["sd"], eff["early"]["n"], rng)
         mu_l, sd_l = _draw_stratum(eff["late"]["mean"], eff["late"]["sd"], eff["late"]["n"], rng)
         pop = EnrichedPopulation(
-            early=Stratum("early", mu_e * shrinkage, sd_e, control_early),
-            late=Stratum("late", mu_l * shrinkage, sd_l, control_late),
+            early=Stratum("early", mu_e, sd_e, control_early, shrinkage),
+            late=Stratum("late", mu_l, sd_l, control_late, shrinkage),
             e=e,
             lower_is_better=ep.lower_is_better,
         )
@@ -213,8 +213,8 @@ def sweep_assumptions(
         for j, c_l in enumerate(cl):
             def solve(e_level: float) -> float:
                 pop = EnrichedPopulation(
-                    early=Stratum("early", eff["early"]["mean"] * shrinkage, eff["early"]["sd"], c_e),
-                    late=Stratum("late", eff["late"]["mean"] * shrinkage, eff["late"]["sd"], c_l),
+                    early=Stratum("early", eff["early"]["mean"], eff["early"]["sd"], c_e, shrinkage),
+                    late=Stratum("late", eff["late"]["mean"], eff["late"]["sd"], c_l, shrinkage),
                     e=e_level,
                     lower_is_better=ep.lower_is_better,
                 )
@@ -264,8 +264,8 @@ def shrinkage_curve(
     for f in fs:
         def solve(e_level: float) -> tuple[float, float]:
             pop = EnrichedPopulation(
-                early=Stratum("early", eff["early"]["mean"] * f, eff["early"]["sd"], control_early),
-                late=Stratum("late", eff["late"]["mean"] * f, eff["late"]["sd"], control_late),
+                early=Stratum("early", eff["early"]["mean"], eff["early"]["sd"], control_early, f),
+                late=Stratum("late", eff["late"]["mean"], eff["late"]["sd"], control_late, f),
                 e=e_level,
                 lower_is_better=ep.lower_is_better,
             )

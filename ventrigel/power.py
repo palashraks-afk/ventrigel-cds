@@ -92,11 +92,24 @@ class Stratum:
     sd: float
     #: Assumed control-arm change from baseline over the same interval.
     control_change: float = 0.0
+    #: Multiplier applied to the *effect* to discount for the winner's curse.
+    #: 1.0 takes the published estimate at face value.
+    shrinkage: float = 1.0
 
     @property
     def effect(self) -> float:
-        """Treatment minus control, in native units and sign."""
-        return self.treatment_change - self.control_change
+        """Treatment minus control, discounted, in native units and sign.
+
+        The discount multiplies the treatment-versus-control difference, not
+        the raw treatment-arm change. Those are different operations and only
+        the first is meaningful: the winner's curse inflates the estimated
+        *effect* of selecting this subgroup, and says nothing about how much
+        of the raw change was natural history. Applying the discount to the
+        raw change instead lets the assumed control arm leak into the
+        discount, so that discounting a large effect against a large control
+        drift could paradoxically increase the estimated effect.
+        """
+        return (self.treatment_change - self.control_change) * self.shrinkage
 
 
 @dataclass(frozen=True)
@@ -156,13 +169,18 @@ def build_population(
     control_early: float = 0.0,
     control_late: float = 0.0,
     timepoint: str = "6mo",
+    shrinkage: float = 1.0,
 ) -> EnrichedPopulation:
     """Assemble the population model for one endpoint from the published data."""
     ep = ENDPOINTS[endpoint]
     eff = subgroup_effects(endpoint, timepoint)
     return EnrichedPopulation(
-        early=Stratum("early", eff["early"]["mean"], eff["early"]["sd"], control_early),
-        late=Stratum("late", eff["late"]["mean"], eff["late"]["sd"], control_late),
+        early=Stratum(
+            "early", eff["early"]["mean"], eff["early"]["sd"], control_early, shrinkage
+        ),
+        late=Stratum(
+            "late", eff["late"]["mean"], eff["late"]["sd"], control_late, shrinkage
+        ),
         e=float(e),
         lower_is_better=ep.lower_is_better,
     )
@@ -326,6 +344,7 @@ def design(
     power: float = 0.80,
     dropout: float = 0.0,
     timepoint: str = "6mo",
+    shrinkage: float = 1.0,
 ) -> Design:
     """Size one trial design.
 
@@ -333,7 +352,7 @@ def design(
     evaluable primary endpoint; the VentriGel Phase I lost 1 of 15 to CMR
     follow-up, so a nonzero value is the realistic default in callers.
     """
-    pop = build_population(endpoint, e, control_early, control_late, timepoint)
+    pop = build_population(endpoint, e, control_early, control_late, timepoint, shrinkage)
     n_arm = n_per_arm_exact(pop.effect, pop.sd, alpha, power)
     if math.isfinite(n_arm):
         n_arm = math.ceil(n_arm / max(1e-9, (1.0 - dropout)))
@@ -368,11 +387,23 @@ def enrichment_curve(
     dropout: float = 0.0,
     n_points: int = 101,
     timepoint: str = "6mo",
+    shrinkage: float = 1.0,
 ) -> list[Design]:
     """Sweep enrichment from the unselected pool composition up to full."""
     grid = np.linspace(pi, 1.0, n_points)
     return [
-        design(endpoint, float(e), pi, control_early, control_late, alpha, power, dropout, timepoint)
+        design(
+            endpoint,
+            float(e),
+            pi,
+            control_early,
+            control_late,
+            alpha,
+            power,
+            dropout,
+            timepoint,
+            shrinkage,
+        )
         for e in grid
     ]
 

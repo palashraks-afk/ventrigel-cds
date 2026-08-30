@@ -1,11 +1,15 @@
 """
-Reproduce every number and figure in the manuscript.
+Reproduce every number in the manuscript.
 
     python run_analysis.py
 
-Writes machine-readable results to ``results/`` and figures to
-``results/figures/``. Runs in well under a minute and takes no arguments,
-because a reviewer should be able to check the whole analysis with one command.
+Writes machine-readable results to ``results/``. Runs in about a minute and
+takes no arguments, because a reviewer should be able to check the whole
+analysis with one command.
+
+The order of the sections is the order of the argument. Section 2 asks whether
+the subgroup effect exists at all; everything after it is explicitly
+conditional on that answer.
 """
 
 from __future__ import annotations
@@ -18,15 +22,30 @@ import numpy as np
 import pandas as pd
 
 from ventrigel import __version__
+from ventrigel.assurance import (
+    assurance,
+    assurance_ceiling,
+    n_for_assurance,
+)
 from ventrigel.economics import CostModel, cost, optimal_enrichment, savings_vs_unselected
+from ventrigel.inference import (
+    all_interaction_tests,
+    assess_evidence,
+    baseline_balance,
+    effective_n_tests,
+    multiplicity,
+    regression_to_mean_check,
+)
+from ventrigel.literature import (
+    ANCHORS,
+    BSA_CENTRAL,
+    early_control_prior,
+    implied_ventrigel_lvesvi,
+    late_control_prior,
+)
 from ventrigel.power import design, enrichment_curve
 from ventrigel.recovery import check_all_mixtures, check_all_p_values
-from ventrigel.sensitivity import (
-    DEFAULT_SHRINKAGE,
-    bootstrap_designs,
-    shrinkage_curve,
-    sweep_assumptions,
-)
+from ventrigel.sensitivity import bootstrap_designs, shrinkage_curve, sweep_assumptions
 from ventrigel.trial_data import (
     CANDIDATE_PRIMARY_ENDPOINTS,
     CITATION,
@@ -39,15 +58,14 @@ from ventrigel.trial_data import (
 RESULTS = Path("results")
 FIGURES = RESULTS / "figures"
 
-#: Fraction of the eligible pool treated more than 12 months post-MI. The
-#: trial's own split, 8 of 15, is the only empirical anchor available; it is
-#: swept from 0.15 to 0.85 in the sensitivity analysis because the trial
-#: deliberately balanced the two arms and so does not estimate the natural
-#: prevalence.
 PI = N_LATE / (N_EARLY + N_LATE)
-
 PRIMARY = "lvesv"
 ALPHA, POWER, DROPOUT = 0.05, 0.80, 0.10
+
+#: Single discount used where one value is needed. Results are reported across
+#: the full 0.4-1.0 range in section 8; this is a reporting convenience, not a
+#: claim that 0.75 is correct.
+SHRINK = 0.75
 
 
 def rule(title: str) -> None:
@@ -65,55 +83,39 @@ def fmt_n(x: float) -> str:
 # --------------------------------------------------------------------------
 
 
-def step_validation() -> dict:
-    rule("[1/6]  Validating the transcription against the published tables")
-
+def step1_validation() -> dict:
+    rule("[1/9]  Is the transcription faithful?")
     checks = check_all_p_values()
     real = [c for c in checks if c.excluded_reason is None]
     excluded = [c for c in checks if c.excluded_reason is not None]
     agree = sum(c.agrees for c in real)
-    print(
-        f"  Recomputed {len(checks)} published paired t-test p-values from mean, SEM and n."
-    )
+    print(f"  Recomputed {len(checks)} published paired t-test p-values from mean, SEM and n.")
     print(f"  {agree}/{len(real)} agree at the precision the source prints.")
     for c in real:
         if not c.agrees:
-            print(
-                f"    disagreement  {c.endpoint} {c.timepoint} {c.group}: "
-                f"recomputed {c.p_recomputed:.3f} vs published {c.p_published}"
-            )
+            print(f"    disagreement  {c.endpoint} {c.timepoint} {c.group}")
     if excluded:
-        print(f"  {len(excluded)} cells excluded for documented reasons:")
         seen = set()
+        print(f"  {len(excluded)} cells excluded for documented reasons:")
         for c in excluded:
-            if c.excluded_reason in seen:
+            head = c.excluded_reason.split(".")[0]
+            if head in seen:
                 continue
-            seen.add(c.excluded_reason)
-            print(f"    {c.endpoint}: {c.excluded_reason.splitlines()[0]}")
+            seen.add(head)
+            print(f"    {c.endpoint}: {head}.")
 
     mixtures = check_all_mixtures()
-    print(
-        "\n  Reconstructing each total-cohort mean and SD from its two subgroups\n"
-        "  (law of total expectation and law of total variance):"
-    )
-    print(
-        f"    {'endpoint':14s} {'mean rec':>9s} {'mean pub':>9s} "
-        f"{'SD rec':>8s} {'SD pub':>8s} {'SD err':>7s}"
-    )
-    for m in mixtures:
-        print(
-            f"    {m.endpoint:14s} {m.mean_reconstructed:9.2f} {m.mean_published:9.2f} "
-            f"{m.sd_reconstructed:8.2f} {m.sd_published:8.2f} {m.sd_rel_error * 100:6.1f}%"
-        )
     med = float(np.median([m.sd_rel_error for m in mixtures]))
-    print(f"    median SD reconstruction error: {med * 100:.1f}%")
+    print(f"\n  Pooled cohorts reconstructed from their strata; median SD error {med * 100:.1f}%.")
+    lv = next(m for m in mixtures if m.endpoint == "lvesv")
+    print(
+        f"    {PRIMARY}: mean {lv.mean_reconstructed:.2f} vs published {lv.mean_published:.2f}, "
+        f"SD {lv.sd_reconstructed:.2f} vs {lv.sd_published:.2f} ({lv.sd_rel_error * 100:.1f}%)"
+    )
 
     pd.DataFrame([c.__dict__ for c in checks]).to_csv(RESULTS / "validation_pvalues.csv", index=False)
-    pd.DataFrame([m.__dict__ for m in mixtures]).to_csv(
-        RESULTS / "validation_mixture.csv", index=False
-    )
+    pd.DataFrame([m.__dict__ for m in mixtures]).to_csv(RESULTS / "validation_mixture.csv", index=False)
     return {
-        "p_checks_total": len(checks),
         "p_checks_tested": len(real),
         "p_checks_agree": agree,
         "p_checks_excluded": len(excluded),
@@ -121,129 +123,285 @@ def step_validation() -> dict:
     }
 
 
-def step_effects() -> pd.DataFrame:
-    rule("[2/6]  Subgroup separation in the published data")
+def step2_does_the_effect_exist() -> dict:
+    rule("[2/9]  Does the subgroup effect exist? (the test nobody ran)")
+    print(
+        "  The trial compared each stratum against its own baseline and observed\n"
+        "  that one reached significance while the other did not. That is not a\n"
+        "  test of effect modification. Below is the comparison of the strata\n"
+        "  against each other, which neither the trial nor earlier versions of\n"
+        "  this analysis performed.\n"
+    )
+    tests = all_interaction_tests()
+    print(
+        f"  {'endpoint':14s} {'early':>8s} {'late':>8s} {'difference':>11s} "
+        f"{'95% CI':>20s} {'p':>8s}"
+    )
+    for t in tests:
+        ci = f"[{t.ci_low:.1f}, {t.ci_high:.1f}]"
+        star = " *" if t.nominally_significant else ""
+        print(
+            f"  {t.endpoint:14s} {t.early_mean:8.2f} {t.late_mean:8.2f} "
+            f"{t.difference:11.2f} {ci:>20s} {t.p_value:8.4f}{star}"
+        )
+
+    mult = multiplicity(tests)
+    nominal, effective, why = effective_n_tests()
+    print(f"\n  Multiplicity across {nominal} interaction tests:")
+    print(f"    {'endpoint':14s} {'p':>8s} {'Bonferroni p':>13s} {'BH threshold':>13s} {'passes':>8s}")
+    for m in mult[:4]:
+        print(
+            f"    {m.endpoint:14s} {m.p_value:8.4f} {m.bonferroni_p:13.3f} "
+            f"{m.bh_threshold:13.4f} {'yes' if m.bh_pass else 'no':>8s}"
+        )
+    print(f"    ... {len(mult) - 4} further endpoints, all p > 0.3")
+    print(f"\n  {why}")
+
+    balance = baseline_balance()
+    bad = [b for b in balance if b.imbalanced]
+    print(
+        f"\n  Baseline balance: {len(balance) - len(bad)}/{len(balance)} measures balanced "
+        f"(all p >= {min(b.p_value for b in balance):.2f})."
+    )
+    print("    The strata were not randomized against each other, so this matters.")
+    for b in balance[:3]:
+        print(f"      {b.endpoint:14s} early {b.early_mean:7.1f}  late {b.late_mean:7.1f}  p={b.p_value:.3f}")
+
+    rtm = regression_to_mean_check(PRIMARY)
+    print(f"\n  Regression to the mean: {rtm.explanation}")
+
+    ev = assess_evidence()
+    print(f"\n  VERDICT: {ev.verdict}")
+
+    pd.DataFrame([t.__dict__ for t in tests]).to_csv(RESULTS / "interaction_tests.csv", index=False)
+    pd.DataFrame([m.__dict__ for m in mult]).to_csv(RESULTS / "multiplicity.csv", index=False)
+    pd.DataFrame([b.__dict__ for b in balance]).to_csv(RESULTS / "baseline_balance.csv", index=False)
+    return {
+        "strongest_endpoint": ev.strongest_endpoint,
+        "strongest_p": ev.strongest_p,
+        "n_nominally_significant": ev.n_nominally_significant,
+        "n_tests": ev.n_tests,
+        "effective_n_tests": effective,
+        "survives_bonferroni": ev.survives_bonferroni,
+        "survives_bh": ev.survives_bh,
+        "baseline_balanced": ev.baseline_balanced,
+        "rtm_ruled_out": ev.rtm_ruled_out,
+        "verdict": ev.verdict,
+    }
+
+
+def step3_literature_anchors() -> dict:
+    rule("[3/9]  What does an untreated patient do? (external control anchors)")
+    print(
+        "  The Phase I was single-arm, so its comparator is missing. Rather than\n"
+        "  sweeping an arbitrary range, control-arm change is anchored to published\n"
+        f"  control and placebo arms. Indexed volumes converted at BSA = {BSA_CENTRAL} m2.\n"
+    )
+    print(
+        f"  {'trial':16s} {'year':>5s} {'phase':>8s} {'measure':>8s} {'published':>14s} "
+        f"{'absolute mL':>12s} {'n':>5s}"
+    )
+    rows = []
+    for a in ANCHORS.values():
+        pub = f"{a.change:+.1f} {'mL/m2' if a.indexed else 'mL'}"
+        print(
+            f"  {a.trial:16s} {a.year:5d} {a.phase:>8s} {a.measure:>8s} {pub:>14s} "
+            f"{a.absolute_change():+12.1f} {a.n:5d}"
+        )
+        rows.append(
+            {
+                "trial": a.trial,
+                "year": a.year,
+                "phase": a.phase,
+                "measure": a.measure,
+                "change_published": a.change,
+                "indexed": a.indexed,
+                "change_mL": a.absolute_change(),
+                "n": a.n,
+                "citation": a.citation,
+            }
+        )
+
+    print(
+        f"\n  BSA check: VentriGel's 148.5 mL baseline implies "
+        f"{implied_ventrigel_lvesvi():.1f} mL/m2, against 65.0 mL/m2 in the chronic\n"
+        "  FOCUS-CCTRN population. Higher, as expected for a dilated post-MI cohort,\n"
+        "  and not so far off as to invalidate the conversion."
+    )
+
+    ep_, lp = early_control_prior(), late_control_prior()
+    print(
+        f"\n  EARLY stratum comparator: central {ep_.central:+.1f} mL, "
+        f"range [{ep_.low:+.1f}, {ep_.high:+.1f}]"
+    )
+    print(f"    {ep_.rationale}")
+    print(
+        f"\n  LATE stratum comparator: central {lp.central:+.1f} mL, "
+        f"range [{lp.low:+.1f}, {lp.high:+.1f}]"
+    )
+    print(f"    {lp.rationale}")
+    print(
+        "\n  The acute anchors disagree in SIGN, which is the finding rather than a\n"
+        "  defect. Older cohorts dilated; the 2022-2024 cohort on contemporary\n"
+        "  therapy underwent reverse remodeling. Post-MI natural history is\n"
+        "  era-dependent, so no single control number is defensible for the early\n"
+        "  stratum and the range is carried through every downstream result."
+    )
+    pd.DataFrame(rows).to_csv(RESULTS / "literature_anchors.csv", index=False)
+    return {
+        "early_central": ep_.central,
+        "early_low": ep_.low,
+        "early_high": ep_.high,
+        "late_central": lp.central,
+        "late_low": lp.low,
+        "late_high": lp.high,
+        "bsa": BSA_CENTRAL,
+    }
+
+
+def step4_cancellation() -> None:
+    rule("[4/9]  Why the pooled effect is a cancellation, not a weak effect")
     rows = []
     for key, ep in ENDPOINTS.items():
         t = ep.change_6mo
         if not {"early", "late"} <= t.keys():
             continue
+        a, b = t["early"].mean, t["late"].mean
+        opposed = a * b < 0 and min(abs(a), abs(b)) > 0.10 * max(abs(a), abs(b))
         rows.append(
             {
                 "endpoint": key,
-                "label": ep.label,
-                "unit": ep.unit,
-                "source": ep.source_table,
-                "early_change": t["early"].mean,
-                "early_sd": t["early"].sd,
-                "early_n": t["early"].n,
-                "early_p": t["early"].p_published,
-                "late_change": t["late"].mean,
-                "late_sd": t["late"].sd,
-                "late_n": t["late"].n,
-                "late_p": t["late"].p_published,
-                "total_change": t["total"].mean if "total" in t else np.nan,
-                "separation_benefit_units": ep.benefit("late") - ep.benefit("early"),
-                "opposite_direction": bool(
-                    "total" in t and t["early"].mean * t["late"].mean < 0
-                ),
+                "early": a,
+                "late": b,
+                "pooled": t["total"].mean if "total" in t else np.nan,
+                "separation_benefit": ep.benefit("late") - ep.benefit("early"),
+                "strata_oppose": opposed,
             }
         )
-    df = pd.DataFrame(rows).sort_values("separation_benefit_units", ascending=False)
-    print(
-        f"  {'endpoint':14s} {'early':>10s} {'late':>10s} {'total':>10s} "
-        f"{'separation':>11s}  opposite"
-    )
+    df = pd.DataFrame(rows).sort_values("separation_benefit", ascending=False)
+    print(f"  {'endpoint':14s} {'early':>9s} {'late':>9s} {'pooled':>9s} {'separation':>11s}  oppose")
     for _, r in df.iterrows():
         print(
-            f"  {r['endpoint']:14s} {r['early_change']:10.2f} {r['late_change']:10.2f} "
-            f"{r['total_change']:10.2f} {r['separation_benefit_units']:11.2f}  "
-            f"{'yes' if r['opposite_direction'] else ''}"
+            f"  {r['endpoint']:14s} {r['early']:9.2f} {r['late']:9.2f} {r['pooled']:9.2f} "
+            f"{r['separation_benefit']:11.2f}  {'yes' if r['strata_oppose'] else ''}"
         )
     print(
-        "\n  Where the two strata move in opposite directions, the total-cohort\n"
-        "  mean is not a small effect. It is a cancellation."
+        "\n  Only end-systolic volume combines genuine opposition with a significant\n"
+        "  interaction. Viable mass looks more dramatic (+15.0 g against -10.5 g)\n"
+        "  but its interaction p is 0.17, so its separation is not distinguishable\n"
+        "  from noise and it is reported here as supporting, not primary."
     )
     df.to_csv(RESULTS / "subgroup_effects.csv", index=False)
-    return df
 
 
-def step_sample_sizes() -> pd.DataFrame:
-    rule("[3/6]  Sample size, unselected versus enriched")
+def step5_sample_sizes(anchors: dict) -> pd.DataFrame:
+    rule("[5/9]  Sample size, unselected versus enriched")
+    ce, cl = anchors["early_central"], anchors["late_central"]
     print(
-        f"  Two-arm parallel design, alpha={ALPHA}, power={POWER:.0%}, "
-        f"{DROPOUT:.0%} dropout, noncentral t.\n"
-        f"  Eligible-pool late fraction pi={PI:.3f}. No control drift and no\n"
-        f"  shrinkage applied here; both are imposed in step 5."
+        f"  Two-arm design, alpha={ALPHA}, power={POWER:.0%}, {DROPOUT:.0%} dropout,\n"
+        f"  noncentral t, pi={PI:.3f}, effect discount {SHRINK:.2f}.\n"
+        f"  Control arm anchored: early {ce:+.1f} mL (TIME), late {cl:+.1f} mL (FOCUS-CCTRN).\n"
+        "  Control assumptions apply to the CMR volume endpoints only; the others\n"
+        "  are shown at zero drift and are correspondingly optimistic."
     )
     rows = []
     for key in CANDIDATE_PRIMARY_ENDPOINTS:
-        u = design(key, PI, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT)
-        e = design(key, 1.0, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT)
-        ratio = u.n_total / e.n_total if e.feasible and e.n_total else np.nan
+        use_ce, use_cl = (ce, cl) if key in ("lvesv", "lvedv") else (0.0, 0.0)
+        u = design(key, PI, PI, use_ce, use_cl, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
+        e = design(key, 1.0, PI, use_ce, use_cl, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
         rows.append(
             {
                 "endpoint": key,
+                "control_early": use_ce,
+                "control_late": use_cl,
                 "effect_unselected": u.effect,
-                "sd_unselected": u.sd,
-                "n_unselected": u.n_total,
+                "n_unselected": u.n_total if u.favors_treatment else np.inf,
                 "effect_enriched": e.effect,
                 "sd_enriched": e.sd,
                 "cohens_d_enriched": e.standardized_effect,
-                "n_enriched": e.n_total,
-                "screens_per_enrolled": e.screens_per_enrolled,
-                "advantage": ratio,
-                "unselected_favors_treatment": u.favors_treatment,
-                "enriched_favors_treatment": e.favors_treatment,
+                "n_enriched": e.n_total if e.favors_treatment else np.inf,
+                "advantage": (u.n_total / e.n_total)
+                if (u.favors_treatment and e.favors_treatment)
+                else np.nan,
             }
         )
     df = pd.DataFrame(rows)
     print(
-        f"\n  {'endpoint':14s} {'eff unsel':>10s} {'N unsel':>12s} "
-        f"{'eff enr':>8s} {'N enrich':>10s} {'d':>6s} {'ratio':>9s}"
+        f"\n  {'endpoint':14s} {'eff unsel':>10s} {'N unsel':>11s} {'eff enr':>8s} "
+        f"{'N enrich':>9s} {'d':>6s} {'ratio':>8s}"
     )
     for _, r in df.iterrows():
         rat = r["advantage"]
-        rs = "worse" if rat < 1 else (f"{rat:,.0f}x" if math.isfinite(rat) else "inf")
-        flag = "" if r["unselected_favors_treatment"] else "  <- wrong sign"
+        rs = "-" if not np.isfinite(rat) else ("worse" if rat < 1 else f"{rat:,.1f}x")
         print(
             f"  {r['endpoint']:14s} {r['effect_unselected']:10.2f} "
-            f"{fmt_n(r['n_unselected']):>12s} {r['effect_enriched']:8.2f} "
-            f"{fmt_n(r['n_enriched']):>10s} {r['cohens_d_enriched']:6.2f} {rs:>9s}{flag}"
+            f"{fmt_n(r['n_unselected']):>11s} {r['effect_enriched']:8.2f} "
+            f"{fmt_n(r['n_enriched']):>9s} {r['cohens_d_enriched']:6.2f} {rs:>8s}"
         )
     print(
-        "\n  Effects are signed so that positive means benefit. Sample size depends\n"
-        "  on the square of the effect, so a design whose effect points the wrong\n"
-        "  way still returns a finite n; that n is the size needed to detect a\n"
-        "  difference of that magnitude in either direction, not the cost of\n"
-        "  demonstrating benefit. The flagged rows have no benefit to detect."
-    )
-    print(
-        "\n  Enrichment is not uniformly good. It is decisive for LVESV and viable\n"
-        "  mass, where the strata oppose; worth about a factor of two for the\n"
-        "  6-min walk, where both strata improve; and counterproductive for\n"
-        "  ejection fraction, whose pooled signal is produced entirely by the\n"
-        "  early stratum worsening -- a safety signal enrichment would erase."
+        "\n  'infeasible' means the modelled effect does not favour treatment, so no\n"
+        "  sample size demonstrates benefit. Enrichment is decisive for end-systolic\n"
+        "  volume, worth under twofold for the 6-min walk where both strata improve,\n"
+        "  and counterproductive for ejection fraction, whose pooled signal is\n"
+        "  produced entirely by the early stratum deteriorating."
     )
     df.to_csv(RESULTS / "sample_sizes.csv", index=False)
     return df
 
 
-def step_uncertainty() -> dict:
-    rule("[4/6]  Estimation uncertainty (parametric bootstrap)")
+def step6_assurance(anchors: dict) -> dict:
+    rule("[6/9]  Power is not probability of success")
+    cl = anchors["late_central"]
     print(
-        "  Subgroup means and SDs come from 6-8 patients. Each draw samples a\n"
-        "  plausible true mean and variance for both strata and re-solves the\n"
-        "  design. Draws where the effect reverses sign are kept as infeasible."
+        "  A trial sized for 80% power at a point estimate is not an 80% trial when\n"
+        "  the point estimate rests on eight patients. Assurance integrates power\n"
+        "  over the uncertainty in the effect, which is what a sponsor deciding\n"
+        "  whether to fund the trial actually needs.\n"
+    )
+    print(f"  {'N total':>8s} {'nominal power':>14s} {'assurance':>10s}")
+    rows = []
+    for n in (52, 92, 108, 150, 200, 300, 500, 1000):
+        r = assurance(PRIMARY, n, SHRINK, cl, ALPHA, n_draws=20000)
+        rows.append({"n_total": n, "nominal_power": r.nominal_power, "assurance": r.assurance})
+        print(f"  {n:8d} {r.nominal_power:13.1%} {r.assurance:9.1%}")
+
+    ceiling = assurance_ceiling(PRIMARY, SHRINK, cl)
+    print(f"\n  Ceiling: {ceiling:.1%}. No sample size does better, because that is the")
+    print("  share of plausible effects that point toward benefit at all.")
+    print("\n  Enrollment required for a target probability of success:")
+    targets = {}
+    for t in (0.50, 0.60, 0.70, 0.80, 0.85, 0.90):
+        n = n_for_assurance(PRIMARY, t, SHRINK, cl, ALPHA, n_draws=20000)
+        targets[t] = n
+        print(f"    {t:.0%} assurance: {'unreachable' if not math.isfinite(n) else f'{n:,.0f} patients'}")
+    print(
+        "\n  This is the single most consequential correction in the analysis. The\n"
+        "  design that looked like 92 patients is a coin flip plus a little; genuine\n"
+        f"  80% probability of success needs roughly {targets[0.80]:,.0f}."
+    )
+    pd.DataFrame(rows).to_csv(RESULTS / "assurance_curve.csv", index=False)
+    return {
+        "ceiling": ceiling,
+        "curve": rows,
+        "n_for_target": {f"{k:.2f}": v for k, v in targets.items()},
+    }
+
+
+def step7_bootstrap(anchors: dict) -> dict:
+    rule("[7/9]  Estimation uncertainty (parametric bootstrap)")
+    cl, ce = anchors["late_central"], anchors["early_central"]
+    print(
+        "  Subgroup estimates rest on 6-8 patients. Each draw samples a plausible\n"
+        "  true mean and variance for both strata and re-solves the design; draws\n"
+        "  whose effect reverses sign are kept as infeasible rather than discarded."
     )
     out = {}
-    print(
-        f"\n  {'endpoint':14s} {'e':>5s} {'N median':>10s} {'80% interval':>18s} {'solvable':>9s}"
-    )
+    print(f"\n  {'endpoint':14s} {'e':>5s} {'N median':>10s} {'80% interval':>18s} {'solvable':>9s}")
     for key in ("lvesv", "viable_mass", "six_min_walk"):
+        use_ce, use_cl = (ce, cl) if key in ("lvesv", "lvedv") else (0.0, 0.0)
         for e in (PI, 1.0):
             b = bootstrap_designs(
-                key, e, PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
+                key, e, PI, use_ce, use_cl, SHRINK, ALPHA, POWER, DROPOUT
             )
             out[f"{key}_e{e:.2f}"] = {
                 "median": b.n_total_median,
@@ -256,70 +414,73 @@ def step_uncertainty() -> dict:
                 f"{fmt_n(b.n_total_q10) + '-' + fmt_n(b.n_total_q90):>18s} "
                 f"{b.feasible_fraction:8.0%}"
             )
-    print(
-        "\n  The solvable fraction is itself a result. For the enriched LVESV design\n"
-        "  it states how often the late-subgroup effect keeps its sign once the\n"
-        "  small sample it was measured in is taken seriously."
-    )
     with open(RESULTS / "bootstrap.json", "w") as f:
         json.dump(out, f, indent=2)
     return out
 
 
-def step_assumptions() -> dict:
-    rule("[5/6]  Structural assumptions: control drift and winner's curse")
+def step8_assumptions(anchors: dict) -> dict:
+    rule("[8/9]  Which assumption the conclusion actually rests on")
+    ce, cl = anchors["early_central"], anchors["late_central"]
+
+    print("  Scenario analysis over the literature-anchored control range:\n")
+    print(f"  {'scenario':38s} {'c_early':>8s} {'c_late':>8s} {'N unsel':>10s} {'N enr':>8s} {'adv':>8s}")
+    scenarios = [
+        ("no control drift (naive)", 0.0, 0.0),
+        ("anchored central", ce, cl),
+        ("modern early care (EMPRESS-MI)", anchors["early_low"], cl),
+        ("pessimistic late (FOCUS-HF)", ce, anchors["late_low"]),
+        ("worst case for enrichment", anchors["early_low"], anchors["late_low"]),
+    ]
+    scen_rows = []
+    for name, c_e, c_l in scenarios:
+        u = design(PRIMARY, PI, PI, c_e, c_l, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
+        e = design(PRIMARY, 1.0, PI, c_e, c_l, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
+        un = fmt_n(u.n_total) if u.favors_treatment else "no benefit"
+        en = fmt_n(e.n_total) if e.favors_treatment else "no benefit"
+        adv = (
+            f"{u.n_total / e.n_total:,.1f}x"
+            if (u.favors_treatment and e.favors_treatment)
+            else ("unbounded" if e.favors_treatment else "-")
+        )
+        scen_rows.append(
+            {
+                "scenario": name,
+                "control_early": c_e,
+                "control_late": c_l,
+                "n_unselected": u.n_total if u.favors_treatment else np.inf,
+                "n_enriched": e.n_total if e.favors_treatment else np.inf,
+            }
+        )
+        print(f"  {name:38s} {c_e:8.1f} {c_l:8.1f} {un:>10s} {en:>8s} {adv:>8s}")
 
     print(
-        "  The Phase I was single-arm, so control-arm drift is unmeasured. If\n"
-        "  untreated early patients dilate on their own, part of the early-versus-\n"
-        "  late gap is natural history rather than effect modification.\n"
-    )
-    grid = sweep_assumptions(
-        PRIMARY, PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
-    )
-    print(f"  Enriched N for {PRIMARY} depends only on the late stratum, so it is")
-    print("  constant in the early-arm drift. What the drift changes is the")
-    print("  *unselected* comparator, and so the size of the advantage. Grid of")
-    print("  N_unselected / N_enriched, rows = early-arm drift (mL), columns =")
-    print("  late-arm drift (mL); 'none' means the unselected effect points at harm.")
-    header = "        " + "".join(f"{c:>9.1f}" for c in grid.control_late_values)
-    print(header)
-    for i, ce in enumerate(grid.control_early_values):
-        cells = ""
-        for j in range(grid.control_late_values.size):
-            a = grid.advantage[i, j]
-            if not np.isfinite(a):
-                cells += f"{'none':>9s}" if np.isnan(a) else f"{'>1e4':>9s}"
-            elif a < 1:
-                cells += f"{'worse':>9s}"
-            else:
-                cells += f"{a:>8,.0f}x"
-        print(f"  {ce:6.1f}{cells}")
-    print(
-        "\n  Read the top-left corner as the hostile case: no early-arm drift means\n"
-        "  the early stratum's +9.3 mL is entirely attributed to treatment, while\n"
-        "  negative late-arm drift means untreated late patients would have improved\n"
-        "  on their own. Even there the enriched design stays solvable; what\n"
-        "  collapses is the claimed size of the advantage."
+        "\n  The enriched design is unaffected by the early-stratum assumption, since\n"
+        "  it enrolls no early patients. It is entirely dependent on the late one.\n"
+        "  FOCUS-CCTRN (n=28, chronic, LVEF<=45%, same delivery route) says zero and\n"
+        "  the design stands. FOCUS-HF (n=10) says -9.9 mL, under which VentriGel's\n"
+        "  -7.6 mL is smaller than natural history and there is no effect at all.\n"
+        "  That one number decides the project."
     )
 
-    print("\n  Winner's curse: the late subgroup was chosen post hoc in these same data.")
-    curve = shrinkage_curve(PRIMARY, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT)
-    print(
-        f"  {'shrinkage':>10s} {'effect (mL)':>12s} {'N enriched':>12s} {'N unselected':>14s}"
+    print("\n  Winner's-curse discount swept across its full range:")
+    curve = shrinkage_curve(
+        PRIMARY, PI, ce, cl, alpha=ALPHA, power=POWER, dropout=DROPOUT
     )
-    for p in curve:
+    print(f"  {'discount':>9s} {'effect':>9s} {'N enriched':>12s} {'N unselected':>14s}")
+    for p in curve[::2]:
         print(
-            f"  {p.shrinkage:10.2f} {p.effect_enriched:12.2f} "
+            f"  {p.shrinkage:9.2f} {p.effect_enriched:9.2f} "
             f"{fmt_n(p.n_enriched):>12s} {fmt_n(p.n_unselected):>14s}"
         )
     print(
-        "\n  Discounting the Phase I effect by 40% still leaves an enriched trial of\n"
-        "  roughly 300 patients. The unselected column stays infeasible throughout,\n"
-        "  because shrinking both strata proportionally shrinks the cancellation\n"
-        "  too: the pooled effect keeps pointing very slightly the wrong way."
+        "\n  No single discount is defended. Across the whole range the enriched\n"
+        "  trial stays between roughly 50 and 300 patients, which is the claim."
     )
 
+    grid = sweep_assumptions(
+        PRIMARY, PI, shrinkage=SHRINK, alpha=ALPHA, power=POWER, dropout=DROPOUT
+    )
     np.savez(
         RESULTS / "assumption_grid.npz",
         control_early=grid.control_early_values,
@@ -328,55 +489,39 @@ def step_assumptions() -> dict:
         advantage=grid.advantage,
     )
     pd.DataFrame([p.__dict__ for p in curve]).to_csv(RESULTS / "shrinkage_curve.csv", index=False)
-    return {"shrinkage_curve": [p.__dict__ for p in curve]}
+    pd.DataFrame(scen_rows).to_csv(RESULTS / "scenarios.csv", index=False)
+    return {"scenarios": scen_rows}
 
 
-def step_economics() -> dict:
-    rule("[6/6]  Cost, and why maximal enrichment is not optimal")
+def step9_economics(anchors: dict) -> dict:
+    rule("[9/9]  Cost and recruitment feasibility")
     model = CostModel()
-    print(f"  Unit costs (assumptions, not measurements): {model.label()}")
-    print(
-        "\n  Screening cost rises as 1/pi for a fully enriched trial, so the cheapest\n"
-        "  design generally sits below full enrichment.\n"
-    )
+    ce, cl = anchors["early_central"], anchors["late_central"]
+    print(f"  Unit costs (planning assumptions, not measurements): {model.label()}\n")
     out = {}
-    for key in ("lvesv", "viable_mass"):
+    for key in (PRIMARY, "six_min_walk"):
+        use_ce, use_cl = (ce, cl) if key == PRIMARY else (0.0, 0.0)
         sweep = enrichment_curve(
-            key, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT, n_points=81
+            key, PI, use_ce, use_cl, ALPHA, POWER, DROPOUT, n_points=81, shrinkage=SHRINK
         )
         best, costed = optimal_enrichment(sweep, model)
-        unsel, best2, saving, frac = savings_vs_unselected(costed)
+        unsel, _, _, frac = savings_vs_unselected(costed)
         print(f"  {key}:")
-        if unsel.feasible and not unsel.design.favors_treatment:
-            print(
-                f"    unselected (e={PI:.2f}): pooled effect points toward harm "
-                f"({unsel.design.effect:+.2f}); no benefit to power for"
-            )
-        elif unsel.feasible:
-            print(
-                f"    unselected (e={PI:.2f}): N={fmt_n(unsel.design.n_total)}, "
-                f"${unsel.total_cost / 1e6:,.1f}M"
-            )
+        if unsel.feasible and unsel.design.favors_treatment:
+            print(f"    unselected: N={fmt_n(unsel.design.n_total)}, ${unsel.total_cost / 1e6:,.1f}M")
         else:
-            print(f"    unselected (e={PI:.2f}): infeasible at any realistic size")
+            print(f"    unselected: no benefit to power for at this control assumption")
         print(
-            f"    cheapest   (e={best.design.e:.2f}): N={fmt_n(best.design.n_total)}, "
-            f"screened={fmt_n(best.design.n_screened)}, ${best.total_cost / 1e6:,.1f}M, "
-            f"{best.duration_months:.0f} months"
-        )
-        full = costed[-1]
-        print(
-            f"    full       (e=1.00): N={fmt_n(full.design.n_total)}, "
-            f"screened={fmt_n(full.design.n_screened)}, ${full.total_cost / 1e6:,.1f}M"
+            f"    cheapest viable: e={best.design.e:.2f}, N={fmt_n(best.design.n_total)}, "
+            f"screened={fmt_n(best.design.n_screened)}, {best.duration_months:.0f} months, "
+            f"${best.total_cost / 1e6:,.1f}M"
         )
         out[key] = {
             "e_optimal": best.design.e,
             "n_optimal": best.design.n_total,
             "cost_optimal": best.total_cost,
-            "cost_full": full.total_cost,
-            "cost_unselected": unsel.total_cost,
+            "duration_months": best.duration_months,
             "saving_fraction": frac,
-            "unselected_favors_treatment": unsel.design.favors_treatment,
         }
         pd.DataFrame(
             [
@@ -385,66 +530,62 @@ def step_economics() -> dict:
                     "n_total": c.design.n_total,
                     "n_screened": c.design.n_screened,
                     "effect": c.design.effect,
-                    "sd": c.design.sd,
                     "duration_months": c.duration_months,
                     "total_cost": c.total_cost,
                 }
                 for c in costed
             ]
         ).to_csv(RESULTS / f"cost_curve_{key}.csv", index=False)
-    # At the trial's own 53% late fraction, screening is cheap and full
-    # enrichment always wins. The screening penalty only bites when eligible
-    # responders are rare, so the honest way to show the tradeoff is to sweep
-    # prevalence and find where the optimum leaves the boundary.
-    print(
-        "\n  Whether an interior optimum exists depends on the sign of the effect in\n"
-        "  the stratum being excluded, and the two candidate endpoints differ:\n"
-        "    lvesv         excluded stratum has a NEGATIVE effect (+9.3 mL, i.e. harm)\n"
-        "    six_min_walk  excluded stratum has a POSITIVE effect (+40.5 m, smaller)\n"
-        "  Sweeping the eligible-pool composition makes the difference visible."
-    )
-    prevalence_rows = []
-    for key in (PRIMARY, "six_min_walk"):
-        print(
-            f"\n    {key}:\n"
-            f"    {'pi':>6s} {'e*':>6s} {'N':>7s} {'screened':>10s} {'months':>7s} {'cost':>10s}"
-        )
-        for pi in (0.60, 0.45, 0.30, 0.20, 0.12, 0.08, 0.05, 0.03):
-            sweep = enrichment_curve(
-                key, pi, alpha=ALPHA, power=POWER, dropout=DROPOUT, n_points=81
-            )
-            best, _ = optimal_enrichment(sweep, model)
-            row = {
-                "endpoint": key,
-                "pi": pi,
-                "e_star": best.design.e,
-                "n_total": best.design.n_total,
-                "n_screened": best.design.n_screened,
-                "duration_months": best.duration_months,
-                "total_cost": best.total_cost,
-            }
-            prevalence_rows.append(row)
-            flag = "  <- over 10 years" if best.duration_months > 120 else ""
-            print(
-                f"    {pi:6.2f} {best.design.e:6.2f} {best.design.n_total:7.0f} "
-                f"{best.design.n_screened:10,.0f} {best.duration_months:7.0f} "
-                f"${best.total_cost / 1e6:9,.1f}M{flag}"
-            )
-    print(
-        "\n  For LVESV the optimum never leaves full enrichment, because every early\n"
-        "  patient admitted carries an effect of the wrong sign and strictly reduces\n"
-        "  the pooled effect. The screening penalty still exists; it just appears as\n"
-        "  duration rather than sample size, and duration is what actually kills the\n"
-        "  design. At a 3% eligible-pool prevalence the enriched trial is still only\n"
-        "  52 patients but takes over three decades to enroll at six sites.\n\n"
-        "  For the 6-min walk, where excluded patients still improve, the optimum is\n"
-        "  interior and moves off the boundary as responders get scarce. An analysis\n"
-        "  that models enrolment but not screening would miss both behaviours and\n"
-        "  conclude that tighter criteria are always better."
-    )
-    pd.DataFrame(prevalence_rows).to_csv(RESULTS / "prevalence_optimum.csv", index=False)
-    out["prevalence_optimum"] = prevalence_rows
 
+    # An 80%-assurance trial is the design actually recommended, so cost that.
+    n80 = n_for_assurance(PRIMARY, 0.80, SHRINK, cl, ALPHA, n_draws=20000)
+    if math.isfinite(n80):
+        d = design(PRIMARY, 1.0, PI, ce, cl, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
+        scaled = type(d)(
+            endpoint=d.endpoint,
+            e=1.0,
+            pi=PI,
+            effect=d.effect,
+            sd=d.sd,
+            sd_within=d.sd_within,
+            sd_between=d.sd_between,
+            standardized_effect=d.standardized_effect,
+            n_per_arm=n80 / 2,
+            n_total=n80,
+            n_screened=n80 / PI,
+            screens_per_enrolled=1 / PI,
+        )
+        c80 = cost(scaled, model)
+        print(
+            f"\n  The recommended design (80% assurance, N={n80:,.0f}): "
+            f"{fmt_n(scaled.n_screened)} screened, {c80.duration_months:.0f} months, "
+            f"${c80.total_cost / 1e6:,.1f}M at {model.n_sites} sites."
+        )
+        # Ninety months of enrollment is not a trial anyone runs, so the design
+        # is only real if it is stated at a site count that makes the calendar
+        # work. Solve for that rather than reporting an infeasible duration.
+        sites_needed = {}
+        for target_months in (24, 30, 36, 48):
+            enroll_months = target_months - model.followup_months
+            if enroll_months <= 0:
+                continue
+            need = scaled.n_screened / (model.enrollment_rate_per_site_month * enroll_months)
+            sites_needed[target_months] = math.ceil(need)
+        print("  Sites required to finish on a given calendar:")
+        for months, sites in sites_needed.items():
+            print(f"    {months} months total: {sites} sites")
+        print(
+            "\n  The six sites that ran the Phase I cannot deliver this trial. That is\n"
+            "  a recruitment finding, not a statistical one, and it is the constraint\n"
+            "  a sponsor would hit first."
+        )
+        out["recommended"] = {
+            "n_total": n80,
+            "n_screened": scaled.n_screened,
+            "duration_months": c80.duration_months,
+            "total_cost": c80.total_cost,
+            "sites_for_calendar": sites_needed,
+        }
     with open(RESULTS / "economics.json", "w") as f:
         json.dump(out, f, indent=2, default=float)
     return out
@@ -457,13 +598,24 @@ def main() -> None:
     print(f"Source trial: {TRIAL_ID}")
     print(CITATION)
 
-    summary = {"version": __version__, "pi": PI, "alpha": ALPHA, "power": POWER, "dropout": DROPOUT}
-    summary["validation"] = step_validation()
-    step_effects()
-    step_sample_sizes()
-    summary["bootstrap"] = step_uncertainty()
-    step_assumptions()
-    summary["economics"] = step_economics()
+    summary = {
+        "version": __version__,
+        "pi": PI,
+        "alpha": ALPHA,
+        "power": POWER,
+        "dropout": DROPOUT,
+        "shrinkage": SHRINK,
+    }
+    summary["validation"] = step1_validation()
+    summary["evidence"] = step2_does_the_effect_exist()
+    anchors = step3_literature_anchors()
+    summary["anchors"] = anchors
+    step4_cancellation()
+    step5_sample_sizes(anchors)
+    summary["assurance"] = step6_assurance(anchors)
+    summary["bootstrap"] = step7_bootstrap(anchors)
+    summary["assumptions"] = step8_assumptions(anchors)
+    summary["economics"] = step9_economics(anchors)
 
     with open(RESULTS / "summary.json", "w") as f:
         json.dump(summary, f, indent=2, default=float)

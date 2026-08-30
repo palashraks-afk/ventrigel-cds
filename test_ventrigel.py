@@ -14,7 +14,31 @@ import math
 
 import numpy as np
 
+from ventrigel.assurance import (
+    assurance,
+    assurance_ceiling,
+    assurance_curve,
+    n_for_assurance,
+    power_at,
+    power_at_vec,
+)
 from ventrigel.economics import CostModel, cost, optimal_enrichment
+from ventrigel.inference import (
+    all_interaction_tests,
+    assess_evidence,
+    baseline_balance,
+    effective_n_tests,
+    interaction_test,
+    multiplicity,
+    regression_to_mean_check,
+)
+from ventrigel.literature import (
+    ANCHORS,
+    BSA_CENTRAL,
+    early_control_prior,
+    implied_ventrigel_lvesvi,
+    late_control_prior,
+)
 from ventrigel.power import (
     EnrichedPopulation,
     Stratum,
@@ -251,6 +275,205 @@ def test_shrinkage_monotonically_increases_required_n():
     curve = shrinkage_curve("lvesv", PI)
     ns = [p.n_enriched for p in curve]
     assert all(a >= b for a, b in zip(ns, ns[1:]))
+
+
+# -- the interaction test (the claim the whole project rests on) ------------
+
+
+def test_lvesv_interaction_is_nominally_significant():
+    """The single result the paper is built on, pinned as a regression test."""
+    t = interaction_test(ENDPOINTS["lvesv"])
+    assert t is not None
+    assert abs(t.difference - (-16.9)) < 1e-9
+    assert 0.030 < t.p_value < 0.038
+    assert t.nominally_significant
+    assert t.ci_high < 0  # interval excludes zero, consistent with the p-value
+
+
+def test_only_one_endpoint_is_nominally_significant():
+    sig = [t for t in all_interaction_tests() if t.nominally_significant]
+    assert len(sig) == 1 and sig[0].endpoint == "lvesv"
+
+
+def test_viable_mass_interaction_is_not_significant():
+    """It reads dramatically and is not significant; it must not be headlined."""
+    t = interaction_test(ENDPOINTS["viable_mass"])
+    assert t.p_value > 0.10
+    assert not t.nominally_significant
+
+
+def test_nothing_survives_multiplicity():
+    """If this ever starts passing, the paper's framing has to change."""
+    mult = multiplicity(all_interaction_tests())
+    assert not any(m.bonferroni_pass for m in mult)
+    assert not any(m.bh_pass for m in mult)
+
+
+def test_multiplicity_fails_even_at_the_reduced_denominator():
+    nominal, effective, _ = effective_n_tests()
+    assert effective < nominal
+    assert all_interaction_tests()[0].p_value > 0.05 / effective
+
+
+def test_benefit_signing_does_not_change_the_evidence():
+    for t in all_interaction_tests():
+        assert abs(abs(t.difference) - abs(t.difference_benefit)) < 1e-12
+
+
+def test_strata_are_balanced_at_baseline():
+    bal = baseline_balance()
+    assert len(bal) >= 8
+    assert not any(b.imbalanced for b in bal)
+
+
+def test_regression_to_mean_is_ruled_out():
+    rtm = regression_to_mean_check("lvesv")
+    assert rtm is not None
+    assert rtm.higher_baseline_stratum == "early"
+    assert rtm.contradicts_rtm
+
+
+def test_evidence_verdict_is_appropriately_hedged():
+    ev = assess_evidence()
+    assert ev.n_nominally_significant == 1
+    assert not ev.survives_bonferroni and not ev.survives_bh
+    assert ev.baseline_balanced and ev.rtm_ruled_out
+
+
+# -- external control anchors ----------------------------------------------
+
+
+def test_anchors_carry_citations_and_sample_sizes():
+    for a in ANCHORS.values():
+        assert a.n >= 10
+        assert len(a.citation) > 60
+        assert a.phase in ("acute", "subacute", "chronic")
+
+
+def test_indexed_anchors_convert_by_bsa():
+    a = ANCHORS["time"]
+    assert a.indexed
+    assert math.isclose(a.absolute_change(2.0), a.change * 2.0)
+    assert math.isclose(a.absolute_change(BSA_CENTRAL), 4.3 * 1.9)
+
+
+def test_absolute_anchor_is_not_rescaled():
+    a = ANCHORS["focus_hf"]
+    assert not a.indexed
+    assert math.isclose(a.absolute_change(2.0), a.change)
+
+
+def test_sd_recovered_from_published_confidence_interval():
+    """TIME publishes a CI rather than an SD; the recovery must be consistent."""
+    a = ANCHORS["time"]
+    half = (a.ci[1] - a.ci[0]) / 2.0
+    assert math.isclose(a.absolute_sd(1.0), (half / 1.959964) * math.sqrt(a.n), rel_tol=1e-9)
+
+
+def test_acute_anchors_disagree_in_sign():
+    """The central empirical finding of the literature review."""
+    vals = [ANCHORS[k].absolute_change() for k in ("time", "empress_mi")]
+    assert min(vals) < 0 < max(vals)
+
+
+def test_chronic_anchor_is_near_zero():
+    assert abs(ANCHORS["focus_cctrn"].absolute_change()) < 1e-9
+
+
+def test_control_priors_bracket_their_sources():
+    ep_, lp = early_control_prior(), late_control_prior()
+    assert ep_.low < 0 < ep_.high
+    assert ep_.low <= ep_.central <= ep_.high
+    assert lp.low <= lp.central <= lp.high
+
+
+def test_bsa_assumption_is_plausible():
+    """A wrong BSA would make every conversion in the module wrong."""
+    lvesvi = implied_ventrigel_lvesvi()
+    assert 65.0 < lvesvi < 100.0
+
+
+# -- shrinkage composition --------------------------------------------------
+
+
+def test_shrinkage_applies_to_the_effect_not_the_raw_change():
+    """Regression test for a real bug.
+
+    Discounting the raw treatment change rather than the effect lets the
+    assumed control arm leak into the discount. With a control change of -10,
+    a raw-change discount would give 0.5*(-7.6) + 10 = 6.2, larger than the
+    undiscounted 2.4 -- a discount that increases the effect.
+    """
+    a = Stratum("late", -7.6, 9.0, control_change=-10.0, shrinkage=1.0)
+    b = Stratum("late", -7.6, 9.0, control_change=-10.0, shrinkage=0.5)
+    assert math.isclose(a.effect, 2.4, abs_tol=1e-9)
+    assert math.isclose(b.effect, 1.2, abs_tol=1e-9)
+    assert abs(b.effect) < abs(a.effect)
+
+
+def test_shrinkage_of_one_is_a_no_op():
+    a = Stratum("late", -7.6, 9.0, control_change=2.0, shrinkage=1.0)
+    assert math.isclose(a.effect, -9.6, abs_tol=1e-12)
+
+
+# -- assurance --------------------------------------------------------------
+
+
+def test_vectorized_power_matches_scalar():
+    effects = np.array([0.5, 2.0, 7.6, 40.0, -1.0])
+    sds = np.full(5, 9.0)
+    vec = power_at_vec(50.0, effects, sds, 0.05)
+    scalar = np.array([power_at(50.0, float(e), float(s), 0.05) for e, s in zip(effects, sds)])
+    assert np.allclose(vec, scalar, atol=1e-9)
+
+
+def test_power_is_zero_for_wrong_sign_effects():
+    assert power_at(100.0, -5.0, 9.0) == 0.0
+    assert power_at_vec(100.0, np.array([-5.0]), np.array([9.0]))[0] == 0.0
+
+
+def test_assurance_curve_is_monotone_in_n():
+    """Common random numbers must make this exactly monotone, not approximately."""
+    ns = np.array([30, 60, 120, 250, 500, 1000, 2000])
+    a = [c.assurance for c in assurance_curve("lvesv", ns, 0.75, 0.0, 0.05, n_draws=4000)]
+    assert all(x <= y + 1e-12 for x, y in zip(a, a[1:]))
+
+
+def test_assurance_is_below_nominal_power():
+    """The whole reason the module exists."""
+    r = assurance("lvesv", 92, 0.75, 0.0, n_draws=8000)
+    assert r.assurance < r.nominal_power
+    assert 0.55 < r.assurance < 0.80
+
+
+def test_assurance_respects_its_ceiling():
+    ceiling = assurance_ceiling("lvesv", 0.75, 0.0, n_draws=8000)
+    huge = assurance("lvesv", 100000, 0.75, 0.0, n_draws=8000)
+    assert huge.assurance <= ceiling + 1e-9
+    assert 0.90 < ceiling < 1.0
+
+
+def test_ceiling_equals_one_minus_wrong_sign_fraction():
+    r = assurance("lvesv", 500, 0.75, 0.0, n_draws=8000)
+    ceiling = assurance_ceiling("lvesv", 0.75, 0.0, n_draws=8000)
+    assert math.isclose(ceiling, 1.0 - r.wrong_sign_fraction, abs_tol=1e-9)
+
+
+def test_n_for_assurance_increases_with_target():
+    ns = [n_for_assurance("lvesv", t, 0.75, 0.0, n_draws=4000) for t in (0.5, 0.6, 0.7, 0.8)]
+    assert all(a < b for a, b in zip(ns, ns[1:]))
+
+
+def test_unreachable_assurance_target_reports_infinity():
+    """Targets above the ceiling must say unreachable, not return a huge number."""
+    assert n_for_assurance("lvesv", 0.999, 0.75, 0.0, n_draws=4000) == math.inf
+
+
+def test_assurance_needs_more_patients_than_nominal_power():
+    """The headline correction, as an executable assertion."""
+    n_power = design("lvesv", 1.0, PI, 0.0, 0.0, dropout=0.10, shrinkage=0.75).n_total
+    n_assur = n_for_assurance("lvesv", 0.80, 0.75, 0.0, n_draws=8000)
+    assert n_assur > n_power
 
 
 # -- data integrity ---------------------------------------------------------

@@ -1,22 +1,96 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
   "pi": 0.5333333333333333,
   "alpha": 0.05,
   "power": 0.8,
   "dropout": 0.1,
+  "shrinkage": 0.75,
   "validation": {
-    "p_checks_total": 42,
     "p_checks_tested": 38,
     "p_checks_agree": 38,
     "p_checks_excluded": 4,
     "sd_reconstruction_median_rel_error": 0.03254567148094008
   },
+  "evidence": {
+    "strongest_endpoint": "lvesv",
+    "strongest_p": 0.034178857619150536,
+    "n_nominally_significant": 1,
+    "n_tests": 9,
+    "effective_n_tests": 5,
+    "survives_bonferroni": false,
+    "survives_bh": false,
+    "baseline_balanced": true,
+    "rtm_ruled_out": true,
+    "verdict": "One endpoint of 9 shows a nominally significant interaction (lvesv, p = 0.034). It does not survive Bonferroni or Benjamini-Hochberg correction. The strata are balanced at baseline, and the pattern is not explained by regression to the mean. The finding is therefore suggestive and fragile: strong enough to justify designing a trial around, not strong enough to assert as established."
+  },
+  "anchors": {
+    "early_central": 8.17,
+    "early_low": -14.819999999999999,
+    "early_high": 8.17,
+    "late_central": 0.0,
+    "late_low": -9.9,
+    "late_high": 9.9,
+    "bsa": 1.9
+  },
+  "assurance": {
+    "ceiling": 0.9746,
+    "curve": [
+      {
+        "n_total": 52,
+        "nominal_power": 0.6052532014393815,
+        "assurance": 0.5320567379147777
+      },
+      {
+        "n_total": 92,
+        "nominal_power": 0.8480049933279483,
+        "assurance": 0.6766752520360317
+      },
+      {
+        "n_total": 108,
+        "nominal_power": 0.900186080362892,
+        "assurance": 0.712321587486114
+      },
+      {
+        "n_total": 150,
+        "nominal_power": 0.9693560360194555,
+        "assurance": 0.7760668603927671
+      },
+      {
+        "n_total": 200,
+        "nominal_power": 0.9932719490981642,
+        "assurance": 0.8211610001590405
+      },
+      {
+        "n_total": 300,
+        "nominal_power": 0.9997458362230163,
+        "assurance": 0.868843915305518
+      },
+      {
+        "n_total": 500,
+        "nominal_power": 0.9999997983771184,
+        "assurance": 0.9078922478897627
+      },
+      {
+        "n_total": 1000,
+        "nominal_power": 0.9999999999999993,
+        "assurance": 0.9374271561472981
+      }
+    ],
+    "n_for_target": {
+      "0.50": 48.0,
+      "0.60": 68.0,
+      "0.70": 104.0,
+      "0.80": 174.0,
+      "0.85": 252.0,
+      "0.90": 442.0
+    }
+  },
   "bootstrap": {
     "lvesv_e0.53": {
-      "median": 2501.0,
-      "q10": 308.20000000000005,
-      "q90": 66091.00000000004,
-      "feasible_fraction": 0.458
+      "median": 896.0,
+      "q10": 172.80000000000007,
+      "q90": 16647.999999999993,
+      "feasible_fraction": 0.83125
     },
     "lvesv_e1.00": {
       "median": 108.0,
@@ -25,9 +99,9 @@
       "feasible_fraction": 0.9765
     },
     "viable_mass_e0.53": {
-      "median": 1238.0,
-      "q10": 162.0,
-      "q90": 30369.0,
+      "median": 1337.0,
+      "q10": 164.0,
+      "q90": 32913.0,
       "feasible_fraction": 0.6515
     },
     "viable_mass_e1.00": {
@@ -37,9 +111,9 @@
       "feasible_fraction": 0.97825
     },
     "six_min_walk_e0.53": {
-      "median": 114.0,
-      "q10": 46.0,
-      "q90": 439.8000000000002,
+      "median": 119.0,
+      "q10": 48.0,
+      "q90": 452.0,
       "feasible_fraction": 0.993
     },
     "six_min_walk_e1.00": {
@@ -49,170 +123,71 @@
       "feasible_fraction": 0.98375
     }
   },
+  "assumptions": {
+    "scenarios": [
+      {
+        "scenario": "no control drift (naive)",
+        "control_early": 0.0,
+        "control_late": 0.0,
+        "n_unselected": Infinity,
+        "n_enriched": 92.0
+      },
+      {
+        "scenario": "anchored central",
+        "control_early": 8.17,
+        "control_late": 0.0,
+        "n_unselected": 1046.0,
+        "n_enriched": 92.0
+      },
+      {
+        "scenario": "modern early care (EMPRESS-MI)",
+        "control_early": -14.819999999999999,
+        "control_late": 0.0,
+        "n_unselected": Infinity,
+        "n_enriched": 92.0
+      },
+      {
+        "scenario": "pessimistic late (FOCUS-HF)",
+        "control_early": 8.17,
+        "control_late": -9.9,
+        "n_unselected": Infinity,
+        "n_enriched": Infinity
+      },
+      {
+        "scenario": "worst case for enrichment",
+        "control_early": -14.819999999999999,
+        "control_late": -9.9,
+        "n_unselected": Infinity,
+        "n_enriched": Infinity
+      }
+    ]
+  },
   "economics": {
     "lvesv": {
       "e_optimal": 1.0,
-      "n_optimal": 52.0,
-      "cost_optimal": 7701750.0,
-      "cost_full": 7701750.0,
-      "cost_unselected": 7187996000.0,
-      "saving_fraction": 1.0,
-      "unselected_favors_treatment": false
+      "n_optimal": 92.0,
+      "cost_optimal": 11589250.0,
+      "duration_months": 47.333333333333336,
+      "saving_fraction": 0.867360427587154
     },
-    "viable_mass": {
-      "e_optimal": 1.0,
-      "n_optimal": 42.0,
-      "cost_optimal": 6729875.0,
-      "cost_full": 6729875.0,
-      "cost_unselected": 240950000.0,
-      "saving_fraction": 0.9720694127412326,
-      "unselected_favors_treatment": true
+    "six_min_walk": {
+      "e_optimal": 0.9825,
+      "n_optimal": 56.0,
+      "cost_optimal": 8056506.25,
+      "duration_months": 31.925,
+      "saving_fraction": 0.16200267838568755
     },
-    "prevalence_optimum": [
-      {
-        "endpoint": "lvesv",
-        "pi": 0.6,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 86.66666666666667,
-        "duration_months": 28.25925925925926,
-        "total_cost": 7501333.333333334
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.45,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 115.55555555555556,
-        "duration_months": 34.67901234567901,
-        "total_cost": 8035777.777777778
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.3,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 173.33333333333334,
-        "duration_months": 47.51851851851852,
-        "total_cost": 9104666.666666666
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.2,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 260.0,
-        "duration_months": 66.77777777777777,
-        "total_cost": 10708000.0
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.12,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 433.33333333333337,
-        "duration_months": 105.2962962962963,
-        "total_cost": 13914666.666666668
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.08,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 650.0,
-        "duration_months": 153.44444444444446,
-        "total_cost": 17923000.0
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.05,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 1040.0,
-        "duration_months": 240.11111111111111,
-        "total_cost": 25138000.0
-      },
-      {
-        "endpoint": "lvesv",
-        "pi": 0.03,
-        "e_star": 1.0,
-        "n_total": 52.0,
-        "n_screened": 1733.3333333333335,
-        "duration_months": 394.1851851851852,
-        "total_cost": 37964666.66666667
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.6,
-        "e_star": 0.995,
-        "n_total": 32.0,
-        "n_screened": 53.06666666666667,
-        "duration_months": 20.79259259259259,
-        "total_cost": 5629733.333333333
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.45,
-        "e_star": 1.0,
-        "n_total": 32.0,
-        "n_screened": 71.11111111111111,
-        "duration_months": 24.80246913580247,
-        "total_cost": 5963555.555555556
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.3,
-        "e_star": 1.0,
-        "n_total": 32.0,
-        "n_screened": 106.66666666666667,
-        "duration_months": 32.70370370370371,
-        "total_cost": 6621333.333333334
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.2,
-        "e_star": 1.0,
-        "n_total": 32.0,
-        "n_screened": 160.0,
-        "duration_months": 44.55555555555556,
-        "total_cost": 7608000.0
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.12,
-        "e_star": 0.131,
-        "n_total": 70.0,
-        "n_screened": 76.41666666666667,
-        "duration_months": 25.98148148148148,
-        "total_cost": 8436708.333333334
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.08,
-        "e_star": 0.08,
-        "n_total": 74.0,
-        "n_screened": 74.0,
-        "duration_months": 25.444444444444443,
-        "total_cost": 8642000.0
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.05,
-        "e_star": 0.05,
-        "n_total": 76.0,
-        "n_screened": 76.0,
-        "duration_months": 25.88888888888889,
-        "total_cost": 8804000.0
-      },
-      {
-        "endpoint": "six_min_walk",
-        "pi": 0.03,
-        "e_star": 0.03,
-        "n_total": 76.0,
-        "n_screened": 76.0,
-        "duration_months": 25.88888888888889,
-        "total_cost": 8804000.0
+    "recommended": {
+      "n_total": 174.0,
+      "n_screened": 326.25,
+      "duration_months": 81.5,
+      "total_cost": 19558625.0,
+      "sites_for_calendar": {
+        "24": 29,
+        "30": 21,
+        "36": 17,
+        "48": 12
       }
-    ]
+    }
   }
 }

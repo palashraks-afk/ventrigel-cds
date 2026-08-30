@@ -1,0 +1,6 @@
+scenario,control_early,control_late,n_unselected,n_enriched
+no control drift (naive),0.0,0.0,inf,92.0
+anchored central,8.17,0.0,1046.0,92.0
+modern early care (EMPRESS-MI),-14.819999999999999,0.0,inf,92.0
+pessimistic late (FOCUS-HF),8.17,-9.9,inf,inf
+worst case for enrichment,-14.819999999999999,-9.9,inf,inf

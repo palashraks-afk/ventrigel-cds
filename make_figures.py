@@ -19,21 +19,35 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.patches import Rectangle
 from matplotlib.ticker import FuncFormatter
 
+from ventrigel.assurance import (
+    assurance_ceiling,
+    assurance_curve,
+    n_for_assurance,
+)
 from ventrigel.economics import CostModel, optimal_enrichment
+from ventrigel.inference import all_interaction_tests, multiplicity
+from ventrigel.literature import (
+    ANCHORS,
+    early_control_prior,
+    late_control_prior,
+)
 from ventrigel.power import design, enrichment_curve
-from ventrigel.sensitivity import DEFAULT_SHRINKAGE, bootstrap_designs, sweep_assumptions
+from ventrigel.sensitivity import bootstrap_designs, sweep_assumptions
 from ventrigel.trial_data import ENDPOINTS, N_EARLY, N_LATE
 
 FIGURES = Path("results/figures")
 PI = N_LATE / (N_EARLY + N_LATE)
-ALPHA, POWER, DROPOUT = 0.05, 0.80, 0.10
+ALPHA, POWER, DROPOUT, SHRINK = 0.05, 0.80, 0.10, 0.75
+PRIMARY = "lvesv"
 
 EARLY_C = "#C0504D"
 LATE_C = "#2E6E9E"
 TOTAL_C = "#4A4A4A"
 ACCENT = "#D98C1F"
+GOOD_C = "#4E8A5B"
 
 plt.rcParams.update(
     {
@@ -49,6 +63,9 @@ plt.rcParams.update(
     }
 )
 
+_ANCHORS = {"early": early_control_prior(), "late": late_control_prior()}
+CE, CL = _ANCHORS["early"].central, _ANCHORS["late"].central
+
 
 def save(fig: plt.Figure, name: str) -> None:
     FIGURES.mkdir(parents=True, exist_ok=True)
@@ -58,11 +75,16 @@ def save(fig: plt.Figure, name: str) -> None:
     print(f"  wrote {name}.pdf / .png")
 
 
+def _controls_for(key: str) -> tuple[float, float]:
+    """Anchored control assumptions apply only to the CMR volume endpoints."""
+    return (CE, CL) if key in ("lvesv", "lvedv") else (0.0, 0.0)
+
+
 # --------------------------------------------------------------------------
 
 
 def fig1_cancellation() -> None:
-    """The central observation: pooled effects are cancellations, not small effects."""
+    """Six-month change by stratum: where the pooled effect comes from."""
     keys = ["lvesv", "viable_mass", "mlwhfq", "six_min_walk", "lvedv", "ef"]
     fig, axes = plt.subplots(2, 3, figsize=(9.5, 5.0))
 
@@ -86,89 +108,288 @@ def fig1_cancellation() -> None:
         ax.tick_params(labelsize=7.5)
         ax.margins(x=0.12)
 
-        # Flag genuine opposition only. A stratum whose effect is a rounding
-        # error away from zero is not "moving in the opposite direction", it is
-        # not moving, so require the smaller effect to be a real fraction of
-        # the larger before calling it a cancellation.
         a, b = t["early"].mean, t["late"].mean
         if a * b < 0 and min(abs(a), abs(b)) > 0.10 * max(abs(a), abs(b)):
             ax.text(
-                0.5,
-                1.02,
-                "strata oppose",
-                transform=ax.transAxes,
-                ha="center",
-                fontsize=7,
-                style="italic",
-                color=ACCENT,
+                0.5, 1.02, "strata oppose", transform=ax.transAxes, ha="center",
+                fontsize=7, style="italic", color=ACCENT,
             )
 
     fig.suptitle(
         "Six-month change from baseline by treatment timing, VentriGel Phase I\n"
         "Bars are published means, whiskers published SEMs; signs flipped so right = benefit",
-        fontsize=9.5,
-        y=0.99,
+        fontsize=9.5, y=0.99,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save(fig, "fig1_subgroup_cancellation")
 
 
-def fig2_enrichment_curves() -> None:
+def fig2_interaction() -> None:
+    """The test nobody ran, with the multiplicity correction beside it."""
+    tests = all_interaction_tests()
+    mult = {m.endpoint: m for m in multiplicity(tests)}
+    fig, (ax, ax2) = plt.subplots(
+        1, 2, figsize=(9.8, 4.2), gridspec_kw={"width_ratios": [1.35, 1]}
+    )
+
+    # Left: forest plot of the between-stratum difference, benefit-signed.
+    y = np.arange(len(tests))[::-1]
+    for i, t in zip(y, tests):
+        sign = -1.0 if t.lower_is_better else 1.0
+        lo, hi = sorted([sign * t.ci_low, sign * t.ci_high])
+        # Standardizing by the standard error lets endpoints on wildly
+        # different scales share one axis. The bar is then the fixed 95%
+        # reference interval and the marker is the t statistic, so distance
+        # from zero reads directly as evidence.
+        scale = (hi - lo) / (2 * 1.96) if hi > lo else 1.0
+        c = LATE_C if t.nominally_significant else "#9AA5B1"
+        ax.plot([lo / scale, hi / scale], [i, i], color=c, lw=2.6, alpha=0.75, solid_capstyle="round")
+        ax.plot([sign * t.difference / scale], [i], "o", color=c, ms=7)
+        ax.text(
+            0.985, i, f"p={t.p_value:.3f}", transform=ax.get_yaxis_transform(),
+            ha="right", va="center", fontsize=7,
+            color="#222" if t.nominally_significant else "#777",
+        )
+    ax.axvline(0, color="#222", lw=1.0)
+    ax.set_yticks(y)
+    ax.set_yticklabels([t.endpoint for t in tests], fontsize=8)
+    ax.set_xlabel("Standardized between-stratum difference $t$ (benefit positive)")
+    ax.set_title(
+        "Do the strata actually differ?\nWelch two-sample test on the change scores",
+        fontsize=9,
+    )
+    ax.set_xlim(-4.2, 4.6)
+
+    # Right: p-values against both correction thresholds.
+    ordered = sorted(tests, key=lambda t: t.p_value)
+    ranks = np.arange(1, len(ordered) + 1)
+    ps = np.array([t.p_value for t in ordered])
+    m = len(ordered)
+    ax2.plot(ranks, ps, "o-", color=TOTAL_C, lw=1.4, ms=6, label="observed p")
+    ax2.plot(ranks, 0.05 * ranks / m, "--", color=GOOD_C, lw=1.6, label="Benjamini-Hochberg")
+    ax2.axhline(0.05 / m, color=EARLY_C, ls=":", lw=1.6, label=f"Bonferroni (0.05/{m})")
+    ax2.axhline(0.05, color="#BBB", lw=1.0)
+    ax2.text(m * 0.98, 0.052, "nominal 0.05", fontsize=6.8, color="#888", ha="right")
+    ax2.annotate(
+        f"LVESV p={ps[0]:.3f}\nabove both thresholds",
+        xy=(1, ps[0]), xytext=(2.1, 0.006), fontsize=7, color=ACCENT,
+        arrowprops={"arrowstyle": "->", "color": ACCENT, "lw": 1.0},
+    )
+    ax2.set_yscale("log")
+    ax2.set_xlabel("Rank of endpoint by p-value")
+    ax2.set_ylabel("p")
+    ax2.set_title("No endpoint survives multiplicity correction", fontsize=9)
+    ax2.legend(fontsize=7, frameon=False, loc="upper left")
+
+    fig.tight_layout()
+    save(fig, "fig2_interaction_and_multiplicity")
+
+
+def fig3_literature_anchors() -> None:
+    """External control arms: what untreated patients do."""
+    fig, ax = plt.subplots(figsize=(8.2, 4.2))
+    order = ["preservation_i", "time", "empress_mi", "focus_cctrn", "focus_hf"]
+    y = np.arange(len(order))[::-1]
+
+    for i, key in zip(y, order):
+        a = ANCHORS[key]
+        c = EARLY_C if a.phase == "acute" else LATE_C
+        val = a.absolute_change()
+        sd = a.absolute_sd()
+        if sd is not None:
+            se = sd / math.sqrt(a.n)
+            ax.plot([val - 1.96 * se, val + 1.96 * se], [i, i], color=c, lw=2.6, alpha=0.5)
+        ax.plot([val], [i], "o", color=c, ms=9)
+        ax.text(
+            val, i + 0.30, f"{a.trial} ({a.year}), n={a.n}", fontsize=7.5,
+            ha="center", color="#333",
+        )
+        ax.text(
+            val, i - 0.34, a.measure, fontsize=6.6, ha="center", color="#888",
+        )
+
+    ax.axvline(0, color="#222", lw=1.0)
+    # VentriGel's own observed changes, for direct comparison.
+    ax.axvline(9.3, color=EARLY_C, ls="--", lw=1.4, alpha=0.85)
+    ax.axvline(-7.6, color=LATE_C, ls="--", lw=1.4, alpha=0.85)
+    ax.text(9.5, len(order) - 0.55, "VentriGel\nearly (+9.3)", fontsize=7, color=EARLY_C)
+    ax.text(-7.4, len(order) - 0.55, "VentriGel\nlate (-7.6)", fontsize=7, color=LATE_C, ha="right")
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(
+        [f"{ANCHORS[k].phase}" for k in order], fontsize=8
+    )
+    ax.set_xlabel("Six-month change in LV volume, control or placebo arm (mL, BSA 1.9 m$^2$)")
+    ax.set_title(
+        "What happens to untreated patients\n"
+        "Acute cohorts disagree in sign; chronic cohorts are stable",
+        fontsize=9.5,
+    )
+    ax.set_ylim(-0.8, len(order) - 0.2)
+    fig.tight_layout()
+    save(fig, "fig3_literature_anchors")
+
+
+def fig4_enrichment_curves() -> None:
     """Required sample size as enrollment is progressively restricted."""
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.9))
 
     styles = {
         "lvesv": (LATE_C, "-", "LVESV"),
-        "viable_mass": ("#4E8A5B", "-", "Viable mass"),
+        "viable_mass": (GOOD_C, "--", "Viable mass"),
         "six_min_walk": (ACCENT, "-", "6-min walk"),
         "mlwhfq": ("#8A6BA8", "--", "MLWHFQ"),
     }
     for key, (c, ls, lab) in styles.items():
-        sweep = enrichment_curve(key, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT, n_points=121)
+        c_e, c_l = _controls_for(key)
+        sweep = enrichment_curve(
+            key, PI, c_e, c_l, ALPHA, POWER, DROPOUT, n_points=121, shrinkage=SHRINK
+        )
         e = [d.e for d in sweep]
         n = [d.n_total if (d.feasible and d.favors_treatment) else np.nan for d in sweep]
         ax.plot(e, n, color=c, ls=ls, lw=1.8, label=lab)
 
     ax.set_yscale("log")
-    ax.set_xlabel("Fraction of enrolled patients drawn from the late stratum")
-    ax.set_ylabel("Total randomized patients (both arms)")
+    ax.set_xlabel("Fraction of enrolled patients from the late stratum")
+    ax.set_ylabel("Total randomized patients")
     ax.axvline(PI, color="#888", ls=":", lw=1.2)
-    ax.text(PI + 0.01, ax.get_ylim()[1] * 0.5, "unselected\npool", fontsize=7, color="#666")
+    ax.text(PI + 0.012, ax.get_ylim()[1] * 0.35, "unselected\npool", fontsize=7, color="#666")
     ax.set_title("Sample size falls as enrollment is enriched", fontsize=9)
     ax.legend(fontsize=7.5, frameon=False)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
 
-    # Right panel: decomposition of why, for the primary endpoint.
-    sweep = enrichment_curve(PRIMARY := "lvesv", PI, alpha=ALPHA, power=POWER, dropout=DROPOUT, n_points=121)
+    sweep = enrichment_curve(
+        PRIMARY, PI, CE, CL, ALPHA, POWER, DROPOUT, n_points=121, shrinkage=SHRINK
+    )
     e = np.array([d.e for d in sweep])
     ax2.plot(e, [d.effect for d in sweep], color=LATE_C, lw=1.8, label="effect $\\Delta$ (mL, benefit +)")
     ax2.plot(e, [d.sd for d in sweep], color=EARLY_C, lw=1.8, label="SD $\\sigma$ (mL)")
     ax2.plot(e, [d.sd_between for d in sweep], color="#888", lw=1.4, ls="--", label="between-stratum SD")
     ax2.axhline(0, color="#222", lw=0.9)
     ax2.axvline(PI, color="#888", ls=":", lw=1.2)
-    ax2.set_xlabel("Fraction of enrolled patients drawn from the late stratum")
+    ax2.set_xlabel("Fraction of enrolled patients from the late stratum")
     ax2.set_ylabel("mL")
     ax2.set_title("Enrichment raises the effect and lowers the variance", fontsize=9)
     ax2.legend(fontsize=7.5, frameon=False, loc="upper left")
 
     fig.tight_layout()
-    save(fig, "fig2_enrichment_curves")
+    save(fig, "fig4_enrichment_curves")
 
 
-def fig3_bootstrap() -> None:
+def fig5_assurance() -> None:
+    """Power versus probability of success."""
+    ns = np.unique(np.round(np.logspace(math.log10(24), math.log10(3000), 26)).astype(int))
+    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.6, 3.9))
+
+    for shrink, c, lab in ((1.00, "#9AA5B1", "no discount"), (SHRINK, LATE_C, "25% discount")):
+        res = assurance_curve(PRIMARY, ns, shrink, CL, ALPHA, n_draws=20000)
+        ax.plot(ns, [r.assurance for r in res], color=c, lw=2.0, label=f"assurance, {lab}")
+        if shrink == SHRINK:
+            ax.plot(ns, [r.nominal_power for r in res], color=EARLY_C, lw=1.6, ls="--",
+                    label="nominal power, 25% discount")
+            ceiling = assurance_ceiling(PRIMARY, shrink, CL)
+            ax.axhline(ceiling, color="#222", ls=":", lw=1.2)
+            ax.text(ns[0] * 1.1, ceiling - 0.055, f"ceiling {ceiling:.0%}", fontsize=7, color="#222")
+
+    ax.axhline(0.80, color=GOOD_C, lw=1.0, alpha=0.6)
+    ax.set_xscale("log")
+    ax.set_xlabel("Total randomized patients")
+    ax.set_ylabel("Probability of a significant result")
+    ax.set_ylim(0, 1.02)
+    ax.set_title("Nominal power overstates the real chance of success", fontsize=9)
+    ax.legend(fontsize=7, frameon=False, loc="lower right")
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+    targets = [0.5, 0.6, 0.7, 0.8, 0.85, 0.9]
+    needed = [n_for_assurance(PRIMARY, t, SHRINK, CL, ALPHA, n_draws=20000) for t in targets]
+    finite = [(t, n) for t, n in zip(targets, needed) if math.isfinite(n)]
+    ax2.bar(
+        [f"{t:.0%}" for t, _ in finite], [n for _, n in finite],
+        color=[LATE_C if t < 0.85 else EARLY_C for t, _ in finite], width=0.62,
+    )
+    for i, (t, n) in enumerate(finite):
+        ax2.text(i, n * 1.08, f"{n:,.0f}", ha="center", fontsize=7.5)
+    ax2.set_yscale("log")
+    ax2.set_ylabel("Total randomized patients")
+    ax2.set_xlabel("Target probability of success")
+    ax2.set_title("Cost of certainty, in patients", fontsize=9)
+    ax2.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+
+    fig.tight_layout()
+    save(fig, "fig5_assurance")
+
+
+def fig6_control_drift() -> None:
+    """The assumption space, with the literature-anchored region marked."""
+    grid = sweep_assumptions(
+        PRIMARY, PI, np.linspace(-16, 14, 31), np.linspace(-11, 11, 23),
+        shrinkage=SHRINK, alpha=ALPHA, power=POWER, dropout=DROPOUT,
+    )
+    adv = np.array(grid.advantage, dtype=float)
+    plot = np.where(np.isinf(adv), 1e4, adv)
+    plot = np.clip(plot, 1.0, 1e4)
+
+    fig, ax = plt.subplots(figsize=(7.4, 4.8))
+    im = ax.imshow(
+        plot.T, origin="lower", aspect="auto", cmap="BuPu", norm=LogNorm(vmin=1, vmax=1e4),
+        extent=(
+            grid.control_early_values[0], grid.control_early_values[-1],
+            grid.control_late_values[0], grid.control_late_values[-1],
+        ),
+    )
+    # Where the enriched design itself fails: late control at or beyond the
+    # treatment effect. This is the only region that actually matters.
+    fail = ENDPOINTS[PRIMARY].change_6mo["late"].mean  # -7.6
+    ax.axhspan(
+        grid.control_late_values[0], fail, color="#1B1B1B", alpha=0.58, lw=0, zorder=3,
+    )
+    ax.axhline(fail, color="#fff", lw=1.3, zorder=4)
+    ax.text(
+        grid.control_early_values[0] + 0.6, fail - 0.55,
+        "enriched design fails below this line:\nnatural history exceeds the treatment effect",
+        fontsize=7.4, color="#fff", zorder=5, va="top", linespacing=1.35,
+    )
+
+    ep_, lp = _ANCHORS["early"], _ANCHORS["late"]
+    ax.add_patch(
+        Rectangle(
+            (ep_.low, lp.low), ep_.high - ep_.low, lp.high - lp.low,
+            fill=False, edgecolor=ACCENT, lw=2.0, ls="--", zorder=5,
+        )
+    )
+    ax.plot([CE], [CL], marker="*", ms=17, color=ACCENT, mec="#222", mew=0.8, zorder=6)
+    ax.annotate(
+        "anchored central\n(TIME / FOCUS-CCTRN)",
+        xy=(CE, CL), xytext=(CE - 13.0, CL + 6.0), fontsize=7.5, color="#222", zorder=6,
+        arrowprops={"arrowstyle": "->", "color": "#222", "lw": 1.0},
+    )
+    ax.set_xlabel("Assumed control-arm LVESV change, early stratum (mL at 6 months)")
+    ax.set_ylabel("Assumed control-arm change, late stratum (mL)")
+    ax.set_title(
+        "Enrichment advantage across the control-arm assumption space\n"
+        "Dashed box is the range spanned by published control arms",
+        fontsize=9,
+    )
+    ax.grid(False)
+    cb = fig.colorbar(im, ax=ax, label="unselected N / enriched N", extend="max")
+    cb.ax.text(0.5, 1.11, "no pooled benefit", transform=cb.ax.transAxes,
+               ha="center", fontsize=6.5, color="#444")
+    fig.tight_layout()
+    save(fig, "fig6_control_drift")
+
+
+def fig7_bootstrap() -> None:
     """Estimation uncertainty in the enriched design."""
     fig, axes = plt.subplots(1, 3, figsize=(9.5, 3.4))
     for ax, key in zip(axes, ("lvesv", "viable_mass", "six_min_walk")):
-        b_un = bootstrap_designs(
-            key, PI, PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
-        )
-        b_en = bootstrap_designs(
-            key, 1.0, PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
-        )
+        c_e, c_l = _controls_for(key)
+        b_un = bootstrap_designs(key, PI, PI, c_e, c_l, SHRINK, ALPHA, POWER, DROPOUT)
+        b_en = bootstrap_designs(key, 1.0, PI, c_e, c_l, SHRINK, ALPHA, POWER, DROPOUT)
         bins = np.logspace(1, 5, 45)
         for b, c, lab in ((b_un, EARLY_C, "unselected"), (b_en, LATE_C, "enriched")):
             finite = b.samples[np.isfinite(b.samples)]
-            ax.hist(finite, bins=bins, color=c, alpha=0.55, label=f"{lab} ({b.feasible_fraction:.0%} solvable)")
+            ax.hist(bins=bins, x=finite, color=c, alpha=0.55,
+                    label=f"{lab} ({b.feasible_fraction:.0%} solvable)")
         ax.set_xscale("log")
         ax.set_xlabel("Total randomized patients")
         ax.set_title(ENDPOINTS[key].label, fontsize=8.5)
@@ -176,145 +397,76 @@ def fig3_bootstrap() -> None:
         ax.tick_params(labelsize=7.5)
     axes[0].set_ylabel("Bootstrap draws")
     fig.suptitle(
-        f"Estimation uncertainty from the 6-8 patients per stratum "
-        f"(effects discounted {1 - DEFAULT_SHRINKAGE:.0%} for winner's curse)",
+        "Estimation uncertainty from the 6-8 patients per stratum (25% effect discount)",
         fontsize=9.5,
     )
     fig.tight_layout(rect=(0, 0, 1, 0.90))
-    save(fig, "fig3_bootstrap")
+    save(fig, "fig7_bootstrap")
 
 
-def fig4_control_drift() -> None:
-    """The dominant unmeasured assumption, mapped rather than asserted."""
-    grid = sweep_assumptions(
-        "lvesv", PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
-    )
-    adv = np.array(grid.advantage, dtype=float)
-    # An infinite advantage means the unselected trial has no benefit to detect
-    # at any size. That is the strongest case for enrichment, so it must render
-    # as the top of the scale rather than as a blank cell.
-    plot = np.where(np.isinf(adv), 1e4, adv)
-    plot = np.clip(plot, 1.0, 1e4)
-
-    fig, ax = plt.subplots(figsize=(6.4, 4.4))
-    im = ax.imshow(
-        plot.T,
-        origin="lower",
-        aspect="auto",
-        cmap="BuPu",
-        norm=LogNorm(vmin=1, vmax=1e4),
-        extent=(
-            grid.control_early_values[0],
-            grid.control_early_values[-1],
-            grid.control_late_values[0],
-            grid.control_late_values[-1],
-        ),
-    )
-    cs = ax.contour(
-        grid.control_early_values,
-        grid.control_late_values,
-        plot.T,
-        levels=[2, 5, 10, 50, 500],
-        colors="#333",
-        linewidths=0.8,
-    )
-    ax.clabel(cs, fmt=lambda v: f"{v:,.0f}x", fontsize=7)
-    ax.axhline(0, color="#fff", lw=0.8, alpha=0.6)
-    ax.plot(9.3, 0.0, marker="o", ms=7, mfc="none", mec=ACCENT, mew=2.0)
-    ax.annotate(
-        "entire early-stratum change\nattributed to natural history",
-        xy=(9.3, 0.0),
-        xytext=(4.4, 2.6),
-        fontsize=7,
-        color=ACCENT,
-        arrowprops={"arrowstyle": "->", "color": ACCENT, "lw": 1.0},
-    )
-    ax.set_xlabel("Assumed control-arm LVESV drift, early stratum (mL at 6 months)")
-    ax.set_ylabel("Assumed control-arm drift, late stratum (mL)")
-    ax.set_title(
-        "Enrichment advantage under every control-arm assumption\n"
-        "(unselected N / enriched N; the Phase I was single-arm so this is unmeasured)",
-        fontsize=9,
-    )
-    ax.grid(False)
-    cb = fig.colorbar(im, ax=ax, label="advantage (x)", extend="max")
-    cb.ax.text(
-        0.5,
-        1.04,
-        "no pooled\nbenefit at all",
-        transform=cb.ax.transAxes,
-        ha="center",
-        fontsize=6.5,
-        color="#444",
-    )
-    fig.tight_layout()
-    save(fig, "fig4_control_drift")
-
-
-def fig5_economics() -> None:
-    """Cost, duration, and where the screening penalty binds."""
+def fig8_economics() -> None:
+    """Cost, and where the screening penalty binds."""
     model = CostModel()
-    pis = np.linspace(0.03, 0.75, 25)
+    pis = np.linspace(0.05, 0.75, 22)
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.5, 3.9))
 
-    for key, c, lab in (("lvesv", LATE_C, "LVESV"), ("six_min_walk", ACCENT, "6-min walk")):
-        costs, months, estar = [], [], []
+    for key, c, lab in ((PRIMARY, LATE_C, "LVESV"), ("six_min_walk", ACCENT, "6-min walk")):
+        c_e, c_l = _controls_for(key)
+        costs, estar = [], []
         for pi in pis:
-            sweep = enrichment_curve(key, float(pi), alpha=ALPHA, power=POWER, dropout=DROPOUT, n_points=61)
-            best, _ = optimal_enrichment(sweep, model)
+            sweep = enrichment_curve(
+                key, float(pi), c_e, c_l, ALPHA, POWER, DROPOUT, n_points=61, shrinkage=SHRINK
+            )
+            try:
+                best, _ = optimal_enrichment(sweep, model)
+            except ValueError:
+                costs.append(np.nan)
+                estar.append(np.nan)
+                continue
             costs.append(best.total_cost / 1e6)
-            months.append(best.duration_months)
             estar.append(best.design.e)
-        ax.plot(pis, costs, color=c, lw=1.8, label=f"{lab}: cost")
-        ax2.plot(pis, estar, color=c, lw=1.8, label=f"{lab}: optimal enrichment")
+        ax.plot(pis, costs, color=c, lw=1.8, label=lab)
+        ax2.plot(pis, estar, color=c, lw=1.8, label=lab)
 
     ax.set_xlabel("Late-stratum prevalence in the eligible pool")
     ax.set_ylabel("Cost of the cheapest viable design ($M)")
     ax.set_title("Rarer responders cost more to find", fontsize=9)
     ax.legend(fontsize=7.5, frameon=False)
 
-    ax2.plot(pis, pis, color="#999", ls=":", lw=1.2, label="unselected (e = $\\pi$)")
+    ax2.plot(pis, pis, color="#999", ls=":", lw=1.2, label="unselected ($e=\\pi$)")
     ax2.set_xlabel("Late-stratum prevalence in the eligible pool")
-    ax2.set_ylabel("Cost-optimal enrichment level $e^*$")
+    ax2.set_ylabel("Cost-optimal enrichment $e^*$")
     ax2.set_ylim(-0.03, 1.05)
     ax2.set_title("When full enrichment stops paying", fontsize=9)
     ax2.legend(fontsize=7.5, frameon=False, loc="center right")
-    ax2.text(
-        0.045,
-        0.62,
-        "6-min walk optimum drops to\nunselected: excluded patients\nstill improve, so screening\nfor them is not worth it",
-        fontsize=6.8,
-        color="#555",
-    )
-
     fig.tight_layout()
-    save(fig, "fig5_economics")
+    save(fig, "fig8_economics")
 
 
-def fig6_design_summary() -> None:
+def fig9_design_summary() -> None:
     """One panel a trial designer can act on."""
     keys = ["lvesv", "viable_mass", "mlwhfq", "lvedv", "six_min_walk", "ef"]
-    fig, ax = plt.subplots(figsize=(7.4, 4.0))
+    fig, ax = plt.subplots(figsize=(7.6, 4.2))
     y = np.arange(len(keys))[::-1]
 
     for i, key in zip(y, keys):
-        u = design(key, PI, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT)
-        e = design(key, 1.0, PI, alpha=ALPHA, power=POWER, dropout=DROPOUT)
-        b = bootstrap_designs(
-            key, 1.0, PI, shrinkage=DEFAULT_SHRINKAGE, alpha=ALPHA, power=POWER, dropout=DROPOUT
-        )
+        c_e, c_l = _controls_for(key)
+        u = design(key, PI, PI, c_e, c_l, ALPHA, POWER, DROPOUT, shrinkage=SHRINK)
+        b = bootstrap_designs(key, 1.0, PI, c_e, c_l, SHRINK, ALPHA, POWER, DROPOUT)
         if u.favors_treatment and u.feasible:
             ax.plot([u.n_total], [i + 0.18], "s", color=EARLY_C, ms=6)
         else:
-            # No amount of enrolment demonstrates benefit here, so there is no
-            # point on the axis. Park a marker past the right edge instead of
-            # silently omitting the row.
             ax.plot([2.1e5], [i + 0.18], ">", color=EARLY_C, ms=8, clip_on=False)
         if math.isfinite(b.n_total_median):
-            ax.plot(
-                [b.n_total_q10, b.n_total_q90], [i - 0.18, i - 0.18], color=LATE_C, lw=3.0, alpha=0.40
-            )
+            ax.plot([b.n_total_q10, b.n_total_q90], [i - 0.18, i - 0.18],
+                    color=LATE_C, lw=3.0, alpha=0.40)
             ax.plot([b.n_total_median], [i - 0.18], "o", color=LATE_C, ms=6)
+
+    n80 = n_for_assurance(PRIMARY, 0.80, SHRINK, CL, ALPHA, n_draws=20000)
+    if math.isfinite(n80):
+        ax.axvline(n80, color=GOOD_C, lw=1.6, ls="--")
+        ax.text(n80 * 1.12, len(keys) - 1.5, f"recommended\ndesign: {n80:,.0f}",
+                fontsize=7.5, color=GOOD_C)
 
     ax.set_xscale("log")
     ax.set_yticks(y)
@@ -323,33 +475,30 @@ def fig6_design_summary() -> None:
     ax.set_xlim(10, 3e5)
     ax.set_ylim(-0.7, len(keys) - 0.3)
     ax.plot([], [], "s", color=EARLY_C, ms=6, label="unselected cohort")
-    ax.plot([], [], ">", color=EARLY_C, ms=8, label="unselected: no benefit to detect at any N")
-    ax.plot([], [], "o", color=LATE_C, ms=6, label="enriched, discounted (median, 80% interval)")
-    ax.legend(
-        fontsize=7.5,
-        frameon=False,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.16),
-        ncol=3,
-        columnspacing=1.4,
-    )
+    ax.plot([], [], ">", color=EARLY_C, ms=8, label="unselected: no benefit at any N")
+    ax.plot([], [], "o", color=LATE_C, ms=6, label="enriched (median, 80% interval)")
+    ax.legend(fontsize=7.3, frameon=False, loc="upper center",
+              bbox_to_anchor=(0.5, -0.16), ncol=3, columnspacing=1.2)
     ax.set_title(
         "What each candidate primary endpoint would cost in patients\n"
-        "Enriched estimates carry a 25% effect discount and full estimation uncertainty",
+        "Control arms anchored to published trials; 25% effect discount; full estimation uncertainty",
         fontsize=9,
     )
     fig.tight_layout()
-    save(fig, "fig6_design_summary")
+    save(fig, "fig9_design_summary")
 
 
 def main() -> None:
     print("Generating figures...")
     fig1_cancellation()
-    fig2_enrichment_curves()
-    fig3_bootstrap()
-    fig4_control_drift()
-    fig5_economics()
-    fig6_design_summary()
+    fig2_interaction()
+    fig3_literature_anchors()
+    fig4_enrichment_curves()
+    fig5_assurance()
+    fig6_control_drift()
+    fig7_bootstrap()
+    fig8_economics()
+    fig9_design_summary()
     print(f"Done. {FIGURES.resolve()}")
 
 
