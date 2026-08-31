@@ -11,8 +11,10 @@ rather than on v1.
 
 ## Why a new version, not a new record
 
-Zenodo's "New version" keeps the concept DOI (`10.5281/zenodo.21516443`) resolving to the newest
-version while preserving v1 at its own versioned DOI. That is exactly what you want: the old record
+Zenodo's "New version" keeps the concept DOI resolving to the newest version while preserving v1 at
+its own versioned DOI. NOTE: the concept DOI here is `10.5281/zenodo.21516442`, not `...443`.
+`...443` is the version DOI for v1 and will always point at v1. An earlier draft of this file had
+those two the wrong way round. That is exactly what you want: the old record
 stays citable and visible, which is honest, but anyone arriving at the concept DOI sees the
 correction.
 

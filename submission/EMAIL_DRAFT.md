@@ -69,7 +69,8 @@ minutes.
 > the trial's screening data, or from a cohort I've missed?
 >
 > The analysis, code and manuscript are at
-> https://github.com/palashraks-afk/ventrigel-cds, and there's an interactive version at
+> https://github.com/palashraks-afk/ventrigel-cds, the paper is at
+> https://doi.org/10.5281/zenodo.21516442, and there's an interactive version at
 > https://ventrigelcds.streamlit.app. I'd be glad to be told I've got something wrong.
 >
 > Thank you for your time.
@@ -91,7 +92,7 @@ minutes.
 
 ## Before you send
 
-- [ ] Zenodo correction published and the concept DOI resolving to v2
-- [ ] The app loads (it does, verified after the last deploy)
+- [x] Zenodo correction published; concept DOI 10.5281/zenodo.21516442 resolves to v2 (verified)
+- [x] The app loads (verified after the last deploy)
 - [ ] An adult sponsor or teacher has read the manuscript
 - [ ] Read it aloud once; if a sentence doesn't sound like you, change it
