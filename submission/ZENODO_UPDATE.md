@@ -1,22 +1,26 @@
 # Zenodo: publishing the corrected version
 
-**I cannot do this step.** It requires signing in to your Zenodo account, and I will not
-authenticate as you. Everything you need is prepared below; the actual upload is about five minutes
-of your time.
+**DONE.** Version 2.0 was published on 30 August 2026. This file is kept as a record of what was
+uploaded and why, not as a to-do list.
 
-Do this **before** emailing anyone, so that whoever follows the DOI lands on the corrected record
-rather than on v1.
+| | |
+|---|---|
+| Concept DOI (cite this) | `10.5281/zenodo.21516442` |
+| v2 version DOI | `10.5281/zenodo.22181242` |
+| v1 version DOI | `10.5281/zenodo.21516443` |
+| Licence | CC BY 4.0 |
 
 ---
 
 ## Why a new version, not a new record
 
 Zenodo's "New version" keeps the concept DOI resolving to the newest version while preserving v1 at
-its own versioned DOI. NOTE: the concept DOI here is `10.5281/zenodo.21516442`, not `...443`.
-`...443` is the version DOI for v1 and will always point at v1. An earlier draft of this file had
-those two the wrong way round. That is exactly what you want: the old record
-stays citable and visible, which is honest, but anyone arriving at the concept DOI sees the
-correction.
+its own versioned DOI. The old record stays citable and visible, which is the point, but anyone
+arriving at the concept DOI sees the correction.
+
+One trap worth recording, because I fell into it: the concept DOI is `...442`, not `...443`.
+`...443` is the version DOI for v1 and will always point at the retracted classifier paper. Earlier
+drafts of this file, and of the outreach email, had those two the wrong way round.
 
 **Do not delete v1.** A deleted record with a live DOI is worse than a corrected one, and the
 correction is only meaningful if the thing being corrected remains visible.
